@@ -4,32 +4,37 @@ import {
   computed,
   defineComponent,
   inject,
-  PropType,
+  type PropType,
   toRef,
   watch,
   nextTick,
   watchEffect
 } from 'vue'
-import { createTreeMate, TreeNode } from 'treemate'
+import { createTreeMate, type TreeNode } from 'treemate'
 import { happensIn } from 'seemly'
-import { RenderLabel } from '../../_internal/select-menu/src/interface'
-import { tmOptions } from '../../select/src/utils'
 import {
-  OnUpdateValue,
-  OnUpdateValueImpl,
-  Value,
-  SelectMixedOption,
-  SelectBaseOption,
-  SelectGroupOption,
-  SelectIgnoredOption,
-  ValueAtom
+  type NodeProps,
+  type RenderLabel
+} from '../../_internal/select-menu/src/interface'
+import { createTmOptions } from '../../select/src/utils'
+import {
+  type OnUpdateValue,
+  type OnUpdateValueImpl,
+  type Value,
+  type SelectMixedOption,
+  type SelectBaseOption,
+  type SelectGroupOption,
+  type SelectIgnoredOption,
+  type ValueAtom
 } from '../../select/src/interface'
-import { useConfig } from '../../_mixins'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import { NInternalSelectMenu } from '../../_internal'
 import { call, keysOf, warn } from '../../_utils'
 import type { MaybeArray } from '../../_utils'
+import { popselectLight } from '../styles'
 import type { PopselectSize } from './interface'
 import { popselectInjectionKey } from './interface'
+import style from './styles/index.cssr'
 
 export const panelProps = {
   multiple: Boolean,
@@ -52,6 +57,12 @@ export const panelProps = {
   onMouseenter: Function as PropType<(e: MouseEvent) => void>,
   onMouseleave: Function as PropType<(e: MouseEvent) => void>,
   renderLabel: Function as PropType<RenderLabel>,
+  showCheckmark: {
+    type: Boolean,
+    default: undefined
+  },
+  nodeProps: Function as PropType<NodeProps>,
+  virtualScroll: Boolean,
   // deprecated
   onChange: [Function, Array] as PropType<MaybeArray<OnUpdateValue> | undefined>
 } as const
@@ -76,14 +87,23 @@ export default defineComponent({
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const NPopselect = inject(popselectInjectionKey)!
 
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, inlineThemeDisabled } = useConfig(props)
+
+    const themeRef = useTheme(
+      'Popselect',
+      '-pop-select',
+      style,
+      popselectLight,
+      NPopselect.props,
+      mergedClsPrefixRef
+    )
 
     const treeMateRef = computed(() => {
       return createTreeMate<
       SelectBaseOption,
       SelectGroupOption,
       SelectIgnoredOption
-      >(props.options, tmOptions)
+      >(props.options, createTmOptions('value', 'children'))
     })
 
     function doUpdateValue (
@@ -105,7 +125,13 @@ export default defineComponent({
       toggle(tmNode.key)
     }
     function handleMenuMousedown (e: MouseEvent): void {
-      if (!happensIn(e, 'action')) e.preventDefault()
+      if (
+        !happensIn(e, 'action') &&
+        !happensIn(e, 'empty') &&
+        !happensIn(e, 'header')
+      ) {
+        e.preventDefault()
+      }
     }
     function toggle (value: ValueAtom): void {
       const {
@@ -146,6 +172,10 @@ export default defineComponent({
           if (tmNode) {
             doUpdateValue(value, tmNode.rawNode)
           }
+          const { 'onUpdate:show': _onUpdateShow, onUpdateShow } =
+            NPopselect.props
+          if (_onUpdateShow) call(_onUpdateShow, false)
+          if (onUpdateShow) call(onUpdateShow, false)
           NPopselect.setShow(false)
         }
       }
@@ -158,34 +188,54 @@ export default defineComponent({
         NPopselect.syncPosition()
       })
     })
+    const cssVarsRef = computed(() => {
+      const {
+        self: { menuBoxShadow }
+      } = themeRef.value
+      return {
+        '--n-menu-box-shadow': menuBoxShadow
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('select', undefined, cssVarsRef, NPopselect.props)
+      : undefined
     return {
       mergedTheme: NPopselect.mergedThemeRef,
       mergedClsPrefix: mergedClsPrefixRef,
       treeMate: treeMateRef,
       handleToggle,
-      handleMenuMousedown
+      handleMenuMousedown,
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
+    this.onRender?.()
     return (
       <NInternalSelectMenu
         clsPrefix={this.mergedClsPrefix}
         focusable
+        nodeProps={this.nodeProps}
+        class={[`${this.mergedClsPrefix}-popselect-menu`, this.themeClass]}
+        style={this.cssVars}
         theme={this.mergedTheme.peers.InternalSelectMenu}
         themeOverrides={this.mergedTheme.peerOverrides.InternalSelectMenu}
         multiple={this.multiple}
         treeMate={this.treeMate}
         size={this.size}
         value={this.value}
-        virtualScroll={false}
+        virtualScroll={this.virtualScroll}
         scrollable={this.scrollable}
         renderLabel={this.renderLabel}
         onToggle={this.handleToggle}
         onMouseenter={this.onMouseenter}
         onMouseleave={this.onMouseenter}
         onMousedown={this.handleMenuMousedown}
+        showCheckmark={this.showCheckmark}
       >
         {{
+          header: () => this.$slots.header?.() || [],
           action: () => this.$slots.action?.() || [],
           empty: () => this.$slots.empty?.() || []
         }}

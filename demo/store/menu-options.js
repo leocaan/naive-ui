@@ -2,6 +2,7 @@
 
 import { h } from 'vue'
 import { RouterLink } from 'vue-router'
+import { NTag, NSpace } from 'naive-ui'
 
 export const renderMenuLabel = (option) => {
   if (!('path' in option) || option.label === '--Debug') {
@@ -14,6 +15,33 @@ export const renderMenuLabel = (option) => {
     },
     { default: () => option.label }
   )
+}
+
+const renderNewTag = (isZh) =>
+  h(
+    NTag,
+    { type: 'success', size: 'small', round: true, bordered: false },
+    { default: isZh ? () => '新' : () => 'New' }
+  )
+
+const renderItemExtra = (rawItem, isZh) => {
+  if (!rawItem.enSuffix || !isZh) {
+    return rawItem.isNew ? renderNewTag : undefined
+  }
+  const renderEn = () =>
+    h(
+      NSpace,
+      { inline: true, size: 6, wrapItem: false, align: 'center' },
+      { default: () => [rawItem.en, renderNewTag(isZh)] }
+    )
+  return rawItem.isNew ? renderEn : rawItem.en
+}
+const getItemExtraString = (rawItem, isZh) => {
+  if (!rawItem.enSuffix || !isZh) {
+    return ''
+  } else {
+    return rawItem.en
+  }
 }
 
 const appendCounts = (item) => {
@@ -32,12 +60,6 @@ const appendCounts = (item) => {
   }
 }
 
-// const createDebugDemos = (item, mode) => {
-//   if (__DEV__ && mode === 'debug') {
-//     return [item]
-//   } else return []
-// }
-
 function createItems (lang, theme, prefix, items) {
   const isZh = lang === 'zh-CN'
   const langKey = isZh ? 'zh' : 'en'
@@ -46,7 +68,8 @@ function createItems (lang, theme, prefix, items) {
       ...rawItem,
       key: rawItem.en,
       label: rawItem[langKey] || rawItem.en,
-      extra: rawItem.enSuffix && isZh ? rawItem.en : undefined,
+      extra: renderItemExtra(rawItem, isZh),
+      extraString: getItemExtraString(rawItem, isZh),
       path: rawItem.path
         ? `/${lang}/${theme}` + prefix + rawItem.path
         : undefined
@@ -88,6 +111,11 @@ export function createDocumentationMenuOptions ({ lang, theme, mode }) {
           path: '/usage-sfc'
         },
         {
+          en: 'Using UMD',
+          zh: '使用 UMD',
+          path: '/umd'
+        },
+        {
           en: 'Configuring Fonts',
           zh: '配置字体',
           path: '/fonts'
@@ -106,6 +134,11 @@ export function createDocumentationMenuOptions ({ lang, theme, mode }) {
           en: 'Common Issues',
           zh: '常见问题',
           path: '/common-issues'
+        },
+        {
+          en: 'Controlled & Uncontrolled',
+          zh: '受控与非受控',
+          path: '/controlled-uncontrolled'
         }
       ]
     },
@@ -140,20 +173,15 @@ export function createDocumentationMenuOptions ({ lang, theme, mode }) {
           path: '/theme'
         },
         {
-          en: 'Style Element Position',
-          zh: '样式元素位置',
-          path: '/style-position'
+          en: 'Potential Style Conflict',
+          zh: '潜在的样式冲突',
+          path: '/style-conflict'
         },
         {
           en: 'Third-Party Libraries',
           zh: '社区精选资源',
           path: '/community'
         }
-        // {
-        //   en: 'Experimental Features',
-        //   zh: '试验性特性',
-        //   path: '/experimental-features'
-        // }
       ]
     },
     {
@@ -166,11 +194,6 @@ export function createDocumentationMenuOptions ({ lang, theme, mode }) {
           zh: '变更日志',
           path: '/changelog'
         }
-        // {
-        //   en: 'Migrate From V1',
-        //   zh: '从 V1 升级',
-        //   path: '/from-v1'
-        // }
       ]
     }
   ])
@@ -260,6 +283,19 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           zh: '排印',
           enSuffix: true,
           path: '/typography'
+        },
+        {
+          en: 'Watermark',
+          zh: '水印',
+          enSuffix: true,
+          path: '/watermark'
+        },
+        {
+          en: 'Float Button',
+          zh: '浮动按钮',
+          enSuffix: true,
+          path: '/float-button',
+          isNew: true
         }
       ]
     }),
@@ -432,6 +468,12 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           path: '/empty'
         },
         {
+          en: 'Equation',
+          zh: '公式',
+          enSuffix: true,
+          path: '/equation'
+        },
+        {
           en: 'Image',
           zh: '图像',
           enSuffix: true,
@@ -454,6 +496,13 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           zh: '数值动画',
           enSuffix: true,
           path: '/number-animation'
+        },
+        {
+          en: 'QR Code',
+          zh: '二维码',
+          enSuffix: true,
+          path: '/qr-code',
+          isNew: true
         },
         {
           en: 'Statistic',
@@ -490,6 +539,13 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           zh: '树',
           enSuffix: true,
           path: '/tree'
+        },
+        {
+          en: 'Infinite Scroll',
+          zh: '无限滚动',
+          enSuffix: true,
+          path: '/infinite-scroll',
+          isNew: true
         }
       ]
     }),
@@ -657,6 +713,13 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
       type: 'group',
       children: [
         {
+          en: 'Flex',
+          zh: '弹性布局',
+          enSuffix: true,
+          path: '/flex',
+          isNew: true
+        },
+        {
           en: 'Layout',
           zh: '布局',
           enSuffix: true,
@@ -679,6 +742,13 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           zh: '间距',
           enSuffix: true,
           path: '/space'
+        },
+        {
+          en: 'Split',
+          zh: '面板分割',
+          enSuffix: true,
+          path: '/split',
+          isNew: true
         }
       ]
     }),
@@ -694,10 +764,23 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           path: '/collapse-transition'
         },
         {
+          en: 'Discrete API',
+          zh: '独立 API',
+          enSuffix: true,
+          path: '/discrete'
+        },
+        {
           en: 'Scrollbar',
           zh: '滚动条',
           enSuffix: true,
           path: '/scrollbar'
+        },
+        {
+          en: 'Virtual List',
+          zh: '虚拟列表',
+          enSuffix: true,
+          path: '/virtual-list',
+          isNew: true
         }
       ]
     }),
@@ -723,6 +806,19 @@ export function createComponentMenuOptions ({ lang, theme, mode }) {
           zh: '全局样式',
           enSuffix: true,
           path: '/global-style'
+        }
+      ]
+    }),
+    appendCounts({
+      zh: '废弃的组件',
+      en: 'Deprecated Components',
+      type: 'group',
+      children: [
+        {
+          en: 'Legacy Transfer',
+          zh: '旧版穿梭框',
+          enSuffix: true,
+          path: '/legacy-transfer'
         }
       ]
     })

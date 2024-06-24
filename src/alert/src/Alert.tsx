@@ -3,9 +3,10 @@ import {
   ref,
   computed,
   defineComponent,
-  PropType,
+  type PropType,
   mergeProps,
-  HTMLAttributes
+  type HTMLAttributes,
+  watchEffect
 } from 'vue'
 import { getMargin } from 'seemly'
 import {
@@ -15,20 +16,23 @@ import {
   ErrorIcon
 } from '../../_internal/icons'
 import { NFadeInExpandTransition, NBaseClose, NBaseIcon } from '../../_internal'
-import { useConfig, useTheme } from '../../_mixins'
+import { useRtl } from '../../_mixins/use-rtl'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import { warn, createKey } from '../../_utils'
+import {
+  createKey,
+  resolveSlot,
+  resolveWrappedSlot,
+  warnOnce
+} from '../../_utils'
 import type { ExtractPublicPropTypes } from '../../_utils'
 import { alertLight } from '../styles'
 import type { AlertTheme } from '../styles'
 import style from './styles/index.cssr'
 
-const alertProps = {
+export const alertProps = {
   ...(useTheme.props as ThemeProps<AlertTheme>),
-  title: {
-    type: String,
-    default: undefined
-  },
+  title: String,
   showIcon: {
     type: Boolean,
     default: true
@@ -39,28 +43,15 @@ const alertProps = {
     >,
     default: 'default'
   },
-  closable: {
+  bordered: {
     type: Boolean,
-    default: false
+    default: true
   },
+  closable: Boolean,
   onClose: Function,
-  onAfterLeave: {
-    type: Function,
-    default: undefined
-  },
-  onAfterHide: {
-    type: Function,
-    validator: () => {
-      if (__DEV__) {
-        warn(
-          'alert',
-          '`on-after-hide` is deprecated, please use `on-after-leave` instead.'
-        )
-      }
-      return true
-    },
-    default: undefined
-  }
+  onAfterLeave: Function,
+  /** @deprecated */
+  onAfterHide: Function
 }
 
 export type AlertProps = ExtractPublicPropTypes<typeof alertProps>
@@ -70,7 +61,22 @@ export default defineComponent({
   inheritAttrs: false,
   props: alertProps,
   setup (props) {
-    const { mergedClsPrefixRef } = useConfig(props)
+    if (__DEV__) {
+      watchEffect(() => {
+        if (props.onAfterHide !== undefined) {
+          warnOnce(
+            'alert',
+            '`on-after-hide` is deprecated, please use `on-after-leave` instead.'
+          )
+        }
+      })
+    }
+    const {
+      mergedClsPrefixRef,
+      mergedBorderedRef,
+      inlineThemeDisabled,
+      mergedRtlRef
+    } = useConfig(props)
     const themeRef = useTheme(
       'Alert',
       '-alert',
@@ -79,7 +85,8 @@ export default defineComponent({
       props,
       mergedClsPrefixRef
     )
-    const cssVars = computed(() => {
+    const rtlEnabledRef = useRtl('Alert', mergedRtlRef, mergedClsPrefixRef)
+    const cssVarsRef = computed(() => {
       const {
         common: { cubicBezierEaseInOut },
         self
@@ -91,8 +98,12 @@ export default defineComponent({
         lineHeight,
         iconSize,
         iconMargin,
+        iconMarginRtl,
+        closeIconSize,
+        closeBorderRadius,
         closeSize,
         closeMargin,
+        closeMarginRtl,
         padding
       } = self
       const { type } = props
@@ -100,9 +111,15 @@ export default defineComponent({
       return {
         '--n-bezier': cubicBezierEaseInOut,
         '--n-color': self[createKey('color', type)],
-        '--n-close-color': self[createKey('closeColor', type)],
+        '--n-close-icon-size': closeIconSize,
+        '--n-close-border-radius': closeBorderRadius,
         '--n-close-color-hover': self[createKey('closeColorHover', type)],
         '--n-close-color-pressed': self[createKey('closeColorPressed', type)],
+        '--n-close-icon-color': self[createKey('closeIconColor', type)],
+        '--n-close-icon-color-hover':
+          self[createKey('closeIconColorHover', type)],
+        '--n-close-icon-color-pressed':
+          self[createKey('closeIconColorPressed', type)],
         '--n-icon-color': self[createKey('iconColor', type)],
         '--n-border': self[createKey('border', type)],
         '--n-title-text-color': self[createKey('titleTextColor', type)],
@@ -113,13 +130,25 @@ export default defineComponent({
         '--n-title-font-weight': titleFontWeight,
         '--n-icon-size': iconSize,
         '--n-icon-margin': iconMargin,
+        '--n-icon-margin-rtl': iconMarginRtl,
         '--n-close-size': closeSize,
         '--n-close-margin': closeMargin,
+        '--n-close-margin-rtl': closeMarginRtl,
         '--n-padding': padding,
         '--n-icon-margin-left': left,
         '--n-icon-margin-right': right
       }
     })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'alert',
+        computed(() => {
+          return props.type[0]
+        }),
+        cssVarsRef,
+        props
+      )
+      : undefined
     const visibleRef = ref(true)
     const doAfterLeave = (): void => {
       const {
@@ -139,15 +168,20 @@ export default defineComponent({
       doAfterLeave()
     }
     return {
+      rtlEnabled: rtlEnabledRef,
       mergedClsPrefix: mergedClsPrefixRef,
+      mergedBordered: mergedBorderedRef,
       visible: visibleRef,
       handleCloseClick,
       handleAfterLeave,
       mergedTheme: themeRef,
-      cssVars
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
+    this.onRender?.()
     return (
       <NFadeInExpandTransition onAfterLeave={this.handleAfterLeave}>
         {{
@@ -156,12 +190,20 @@ export default defineComponent({
             const attrs: HTMLAttributes = {
               class: [
                 `${mergedClsPrefix}-alert`,
-                this.showIcon && `${mergedClsPrefix}-alert--show-icon`
+                this.themeClass,
+                this.closable && `${mergedClsPrefix}-alert--closable`,
+                this.showIcon && `${mergedClsPrefix}-alert--show-icon`,
+                // fix: https://github.com/tusen-ai/naive-ui/issues/4588
+                !this.title &&
+                  this.closable &&
+                  `${mergedClsPrefix}-alert--right-adjust`,
+                this.rtlEnabled && `${mergedClsPrefix}-alert--rtl`
               ],
               style: this.cssVars as any,
               role: 'alert'
             }
             return this.visible ? (
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
               <div {...mergeProps(this.$attrs, attrs as any)}>
                 {this.closable && (
                   <NBaseClose
@@ -170,14 +212,15 @@ export default defineComponent({
                     onClick={this.handleCloseClick}
                   />
                 )}
+                {this.bordered && (
+                  <div class={`${mergedClsPrefix}-alert__border`} />
+                )}
                 {this.showIcon && (
                   <div
                     class={`${mergedClsPrefix}-alert__icon`}
                     aria-hidden="true"
                   >
-                    {$slots.icon ? (
-                      $slots.icon()
-                    ) : (
+                    {resolveSlot($slots.icon, () => [
                       <NBaseIcon clsPrefix={mergedClsPrefix}>
                         {{
                           default: () => {
@@ -196,15 +239,24 @@ export default defineComponent({
                           }
                         }}
                       </NBaseIcon>
-                    )}
+                    ])}
                   </div>
                 )}
-                <div class={`${mergedClsPrefix}-alert-body`}>
-                  {this.title || $slots.header ? (
-                    <div class={`${mergedClsPrefix}-alert-body__title`}>
-                      {$slots.header ? $slots.header() : this.title}
-                    </div>
-                  ) : null}
+                <div
+                  class={[
+                    `${mergedClsPrefix}-alert-body`,
+                    this.mergedBordered &&
+                      `${mergedClsPrefix}-alert-body--bordered`
+                  ]}
+                >
+                  {resolveWrappedSlot($slots.header, (children) => {
+                    const mergedChildren = children || this.title
+                    return mergedChildren ? (
+                      <div class={`${mergedClsPrefix}-alert-body__title`}>
+                        {mergedChildren}
+                      </div>
+                    ) : null
+                  })}
                   {$slots.default && (
                     <div class={`${mergedClsPrefix}-alert-body__content`}>
                       {$slots}

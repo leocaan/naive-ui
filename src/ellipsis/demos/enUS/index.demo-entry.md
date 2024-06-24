@@ -7,15 +7,18 @@ When you hear somebody talk about a subtle concept, keep alert.
 ## Demos
 
 ```demo
-basic
-line-clamp
-expand-trigger
-custom-tooltip
+basic.vue
+line-clamp.vue
+expand-trigger.vue
+custom-tooltip.vue
+performant-ellipsis.vue
 ```
 
 ## API
 
-### Ellipsis Props
+### Ellipsis, PerformantEllipsis Props
+
+`n-performant-ellipsis` since 2.35.0.
 
 | Name | Type | Default | Description | Version |
 | --- | --- | --- | --- | --- |

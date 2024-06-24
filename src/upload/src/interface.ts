@@ -1,52 +1,34 @@
-import { Ref, CSSProperties } from 'vue'
-import { ImageGroupProps } from '../../image'
+import { type Ref, type CSSProperties, type VNodeChild } from 'vue'
+import { type ImageGroupProps } from '../../image'
 import type { MergedTheme } from '../../_mixins'
 import { createInjectionKey } from '../../_utils'
 import type { UploadTheme } from '../styles'
+import type {
+  UploadCustomRequestOptions,
+  UploadFileInfo,
+  UploadOnDownload,
+  UploadOnFinish,
+  UploadOnRemove,
+  UploadSettledFileInfo
+} from './public-types'
 
-export interface FileInfo {
-  id: string
-  name: string
-  percentage: number
-  status: 'pending' | 'uploading' | 'finished' | 'removed' | 'error'
-  url?: string | null
-  file?: File | null
-  thumbnailUrl?: string | null
-  type?: string | null
-}
+export type ShouldUseThumbnailUrl = (file: UploadSettledFileInfo) => boolean
 
-export type FuncOrRecordOrUndef =
-  | Record<string, string>
-  | (({ file }: { file: FileInfo }) => Record<string, string>)
+export type FuncOrRecordOrUndef<T = string> =
+  | Record<string, T>
+  | (({ file }: { file: UploadSettledFileInfo }) => Record<string, T>)
   | undefined
-
-export type OnChange = (data: {
-  file: FileInfo
-  fileList: FileInfo[]
-  event: ProgressEvent | Event | undefined
-}) => void
-export type OnFinish = ({
-  file,
-  event
-}: {
-  file: FileInfo
-  event?: ProgressEvent
-}) => FileInfo | undefined
-export type OnRemove = (data: {
-  file: FileInfo
-  fileList: FileInfo[]
-}) => Promise<boolean> | boolean | any
-export type OnDownload = (file: FileInfo) => Promise<boolean> | boolean | any
 
 export interface UploadInternalInst {
   doChange: DoChange
-  XhrMap: Map<string, XMLHttpRequest>
+  xhrMap: Map<string, XMLHttpRequest>
+  isErrorState: ((xhr: XMLHttpRequest) => boolean) | undefined
   onError: OnError | undefined
-  onFinish: OnFinish | undefined
+  onFinish: UploadOnFinish | undefined
 }
 
 export type DoChange = (
-  fileAfterChange: FileInfo,
+  fileAfterChange: UploadSettledFileInfo,
   event?: ProgressEvent | Event,
   options?: {
     append?: boolean
@@ -54,7 +36,9 @@ export type DoChange = (
   }
 ) => void
 
-export type OnUpdateFileList = (fileList: FileInfo[]) => void
+export type OnUpdateFileList = (fileList: UploadSettledFileInfo[]) => void
+
+export type RenderIcon = (file: UploadSettledFileInfo) => VNodeChild
 
 export interface UploadInjection {
   mergedClsPrefixRef: Ref<string>
@@ -64,25 +48,36 @@ export interface UploadInjection {
   showDownloadButtonRef: Ref<boolean>
   showRetryButtonRef: Ref<boolean>
   showTriggerRef: Ref<boolean>
-  mergedFileListRef: Ref<FileInfo[]>
-  onRemoveRef: Ref<OnRemove | undefined>
-  onDownloadRef: Ref<OnDownload | undefined>
-  XhrMap: Map<string, XMLHttpRequest>
-  doChange: DoChange
+  mergedFileListRef: Ref<UploadSettledFileInfo[]>
+  onRemoveRef: Ref<UploadOnRemove | undefined>
+  onDownloadRef: Ref<UploadOnDownload | undefined>
+  xhrMap: Map<string, XMLHttpRequest>
   showPreviewButtonRef: Ref<boolean>
   onPreviewRef: Ref<OnPreview | undefined>
   listTypeRef: Ref<ListType>
   dragOverRef: Ref<boolean>
   draggerInsideRef: { value: boolean }
+  fileListClassRef: Ref<string | undefined>
   fileListStyleRef: Ref<string | CSSProperties | undefined>
   mergedDisabledRef: Ref<boolean>
   maxReachedRef: Ref<boolean>
   abstractRef: Ref<boolean>
   imageGroupPropsRef: Ref<ImageGroupProps | undefined>
-  cssVarsRef: Ref<CSSProperties>
+  cssVarsRef: undefined | Ref<CSSProperties>
+  themeClassRef: undefined | Ref<string>
+  mergedDirectoryDndRef: Ref<boolean>
+  acceptRef: Ref<string | undefined>
+  triggerClassRef: Ref<string | undefined>
+  triggerStyleRef: Ref<CSSProperties | string | undefined>
+  doChange: DoChange
+  onRender: undefined | (() => void)
   submit: (fileId?: string) => void
-  getFileThumbnailUrl: (file: FileInfo) => Promise<string>
-  handleFileAddition: (files: FileList | null, e?: Event) => void
+  shouldUseThumbnailUrlRef: Ref<ShouldUseThumbnailUrl>
+  getFileThumbnailUrlResolver: (
+    file: UploadSettledFileInfo
+  ) => Promise<string> | string
+  renderIconRef: Ref<RenderIcon | undefined>
+  handleFileAddition: (files: FileAndEntry[] | null, e?: Event) => void
   openOpenFileDialog: () => void
 }
 
@@ -96,40 +91,34 @@ export interface XhrHandlers {
   handleXHRError: (e: ProgressEvent) => void
 }
 
-export interface UploadInst {
-  openOpenFileDialog: () => void
-  submit: () => void
-  clear: () => void
-}
-
 export type OnBeforeUpload = (data: {
-  file: FileInfo
-  fileList: FileInfo[]
-}) => Promise<unknown>
+  file: UploadSettledFileInfo
+  fileList: UploadSettledFileInfo[]
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+}) => Promise<boolean | void> | boolean | void
 
 export type ListType = 'text' | 'image' | 'image-card'
 
-export type OnPreview = (file: FileInfo) => void
+export type OnPreview = (file: UploadSettledFileInfo) => void
 
-export type CreateThumbnailUrl = (file: File) => Promise<string>
+export type CreateThumbnailUrl = (
+  file: File | null,
+  fileInfo: UploadSettledFileInfo
+) => Promise<string> | string | undefined
 
-export interface CustomRequestOptions {
-  file: FileInfo
-  action?: string
-  withCredentials?: boolean
-  data?: FuncOrRecordOrUndef
-  headers?: FuncOrRecordOrUndef
-  onProgress: (e: { percent: number }) => void
-  onFinish: () => void
-  onError: () => void
-}
-
-export type CustomRequest = (options: CustomRequestOptions) => void
+export type CustomRequest = (options: UploadCustomRequestOptions) => void
 
 export type OnError = ({
   file,
   event
 }: {
-  file: FileInfo
+  file: UploadSettledFileInfo
   event?: ProgressEvent
-}) => FileInfo | undefined
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+}) => UploadFileInfo | undefined | void
+
+export interface FileAndEntry {
+  file: File
+  entry: FileSystemFileEntry | null
+  source: 'dnd' | 'input'
+}

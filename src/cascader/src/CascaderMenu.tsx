@@ -2,28 +2,26 @@ import {
   h,
   ref,
   defineComponent,
-  PropType,
-  watch,
-  toRef,
+  type PropType,
   inject,
-  nextTick,
   Transition,
   withDirectives
 } from 'vue'
-import { FollowerPlacement } from 'vueuc'
+import type { FollowerPlacement } from 'vueuc'
 import { clickoutside } from 'vdirs'
+import FocusDetector from '../../_internal/focus-detector'
+import type { MenuMaskRef } from '../../_internal/menu-mask'
+import { resolveSlot, resolveWrappedSlot, useOnResize } from '../../_utils'
 import { NEmpty } from '../../empty'
 import { NBaseMenuMask } from '../../_internal'
-import { MenuMaskRef } from '../../_internal/menu-mask'
 import NCascaderSubmenu from './CascaderSubmenu'
-import {
-  cascaderInjectionKey,
+import { cascaderInjectionKey } from './interface'
+import type {
   CascaderMenuExposedMethods,
   CascaderSubmenuInstance,
   MenuModel,
   Value
 } from './interface'
-import FocusDetector from '../../_internal/focus-detector'
 
 export default defineComponent({
   name: 'NCascaderMenu',
@@ -47,7 +45,7 @@ export default defineComponent({
       type: Function as PropType<(e: FocusEvent) => void>,
       required: true
     },
-    onKeyup: {
+    onKeydown: {
       type: Function as PropType<(e: KeyboardEvent) => void>,
       required: true
     },
@@ -67,22 +65,17 @@ export default defineComponent({
       mergedClsPrefixRef,
       syncCascaderMenuPosition,
       handleCascaderMenuClickOutside,
-      mergedThemeRef
+      mergedThemeRef,
+      getColumnStyleRef
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     } = inject(cascaderInjectionKey)!
     const submenuInstRefs: CascaderSubmenuInstance[] = []
     const maskInstRef = ref<MenuMaskRef | null>(null)
     const selfElRef = ref<HTMLElement | null>(null)
-    watch(toRef(props, 'value'), () => {
-      void nextTick(() => {
-        syncCascaderMenuPosition()
-      })
-    })
-    watch(toRef(props, 'menuModel'), () => {
-      void nextTick(() => {
-        syncCascaderMenuPosition()
-      })
-    })
+    function handleResize (): void {
+      syncCascaderMenuPosition()
+    }
+    useOnResize(selfElRef, handleResize)
     function showErrorMessage (label: string): void {
       const {
         value: { loadingRequiredMessage }
@@ -122,6 +115,7 @@ export default defineComponent({
       submenuInstRefs,
       maskInstRef,
       mergedTheme: mergedThemeRef,
+      getColumnStyle: getColumnStyleRef,
       handleFocusin,
       handleFocusout,
       handleClickOutside,
@@ -129,7 +123,7 @@ export default defineComponent({
     }
   },
   render () {
-    const { submenuInstRefs, mergedClsPrefix, $slots, mergedTheme } = this
+    const { submenuInstRefs, mergedClsPrefix, mergedTheme } = this
     return (
       <Transition name="fade-in-scale-up-transition" appear={this.isMounted}>
         {{
@@ -143,17 +137,13 @@ export default defineComponent({
                 onMousedown={this.onMousedown}
                 onFocusin={this.handleFocusin}
                 onFocusout={this.handleFocusout}
-                onKeyup={this.onKeyup}
-                style={
-                  {
-                    '--n-col-count': this.menuModel.length
-                  } as any
-                }
+                onKeydown={this.onKeydown}
               >
                 {this.menuModel[0].length ? (
                   <div class={`${mergedClsPrefix}-cascader-submenu-wrapper`}>
                     {this.menuModel.map((submenuOptions, index) => (
                       <NCascaderSubmenu
+                        style={this.getColumnStyle?.({ level: index })}
                         ref={
                           ((instance: CascaderSubmenuInstance) => {
                             if (instance) {
@@ -173,29 +163,36 @@ export default defineComponent({
                   </div>
                 ) : (
                   <div class={`${mergedClsPrefix}-cascader-menu__empty`}>
-                    {$slots.empty ? (
-                      $slots.empty()
-                    ) : (
+                    {resolveSlot(this.$slots.empty, () => [
                       <NEmpty
                         theme={mergedTheme.peers.Empty}
                         themeOverrides={mergedTheme.peerOverrides.Empty}
                       />
-                    )}
+                    ])}
                   </div>
                 )}
-                {$slots.action && (
-                  <div
-                    class={`${mergedClsPrefix}-cascader-menu-action`}
-                    data-action
-                  >
-                    {{
-                      default: $slots.action
-                    }}
-                  </div>
+                {resolveWrappedSlot(
+                  this.$slots.action,
+                  (children) =>
+                    children && (
+                      <div
+                        class={`${mergedClsPrefix}-cascader-menu-action`}
+                        data-action
+                      >
+                        {children}
+                      </div>
+                    )
                 )}
                 <FocusDetector onFocus={this.onTabout} />
               </div>,
-              [[clickoutside, this.handleClickOutside]]
+              [
+                [
+                  clickoutside,
+                  this.handleClickOutside,
+                  undefined as unknown as string,
+                  { capture: true }
+                ]
+              ]
             )
           }
         }}

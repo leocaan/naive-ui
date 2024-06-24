@@ -43,10 +43,10 @@ function getPartsOfDemo (tokens) {
     }
   }
   return {
-    template: template,
-    script: script,
-    style: style,
-    title: title,
+    template,
+    script,
+    style,
+    title,
     content: marked.parser(contentTokens, {
       renderer: mdRenderer
     }),
@@ -122,8 +122,10 @@ function genVueComponent (parts, fileName, relativeUrl) {
     src = src.replace(jsCodeReg, parts.jsCode)
   }
   if (parts.script) {
-    const startScriptTag =
-      parts.language === 'ts' ? '<script lang="ts">\n' : '<script>\n'
+    const attributes = `${parts.api === 'composition' ? ' setup' : ''}${
+      parts.language === 'ts' ? ' lang="ts"' : ''
+    }`
+    const startScriptTag = `<script${attributes}>\n`
     src = src.replace(scriptReg, startScriptTag + parts.script + '\n</script>')
   }
   if (parts.language) {

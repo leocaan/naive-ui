@@ -1,12 +1,14 @@
 import { c, cB, cE, cM } from '../../../_utils/cssr'
-import fadeInHeightExpandTranstion from '../../../_styles/transitions/fade-in-height-expand.cssr'
+import { fadeInHeightExpandTransition } from '../../../_styles/transitions/fade-in-height-expand.cssr'
 
 // vars:
 // --n-bezier
 // --n-color
-// --n-close-color
 // --n-close-color-hover
 // --n-close-color-pressed
+// --n-close-icon-color
+// --n-close-icon-color-hover
+// --n-close-icon-color-pressed
 // --n-icon-color
 // --n-border
 // --n-title-text-color
@@ -18,6 +20,7 @@ import fadeInHeightExpandTranstion from '../../../_styles/transitions/fade-in-he
 // --n-icon-size
 // --n-icon-margin
 // --n-close-size
+// --n-close-icon-size
 // --n-close-margin
 // --n-padding
 // --n-icon-margin-left
@@ -29,12 +32,30 @@ export default cB('alert', `
   transition: background-color .3s var(--n-bezier);
   background-color: var(--n-color);
   text-align: start;
+  word-break: break-word;
 `, [
+  cE('border', `
+    border-radius: inherit;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    transition: border-color .3s var(--n-bezier);
+    border: var(--n-border);
+    pointer-events: none;
+  `),
+  cM('closable', [
+    cB('alert-body', [
+      cE('title', `
+        padding-right: 24px;
+      `)
+    ])
+  ]),
   cE('icon', {
     color: 'var(--n-icon-color)'
   }),
   cB('alert-body', {
-    border: 'var(--n-border)',
     padding: 'var(--n-padding)'
   }, [
     cE('title', {
@@ -45,7 +66,7 @@ export default cB('alert', `
     })
   ]
   ),
-  fadeInHeightExpandTranstion({
+  fadeInHeightExpandTransition({
     originalTransition: 'transform .3s var(--n-bezier)',
     enterToProps: {
       transform: 'scale(1)'
@@ -67,16 +88,23 @@ export default cB('alert', `
     margin: var(--n-icon-margin);
   `),
   cE('close', `
-    transition: color .3s var(--n-bezier);
+    transition:
+      color .3s var(--n-bezier),
+      background-color .3s var(--n-bezier);
     position: absolute;
     right: 0;
     top: 0;
     margin: var(--n-close-margin);
-    font-size: var(--n-close-size);
   `),
   cM('show-icon', [
     cB('alert-body', {
       paddingLeft: 'calc(var(--n-icon-margin-left) + var(--n-icon-size) + var(--n-icon-margin-right))'
+    })
+  ]),
+  // fix: https://github.com/tusen-ai/naive-ui/issues/4588
+  cM('right-adjust', [
+    cB('alert-body', {
+      paddingRight: 'calc(var(--n-close-size) + var(--n-padding) + 2px)'
     })
   ]),
   cB('alert-body', `

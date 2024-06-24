@@ -3,31 +3,50 @@ import {
   defineComponent,
   computed,
   provide,
-  PropType,
+  type PropType,
   ref,
   watch,
   toRef,
-  CSSProperties,
+  type CSSProperties,
   isReactive,
   watchEffect,
-  VNodeChild
+  type VNodeChild,
+  type HTMLAttributes,
+  nextTick,
+  type VNode
 } from 'vue'
-import { createTreeMate, SubtreeNotLoadedError, CheckStrategy } from 'treemate'
+import {
+  createTreeMate,
+  SubtreeNotLoadedError,
+  type CheckStrategy
+} from 'treemate'
 import {
   VBinder,
   VTarget,
   VFollower,
-  FollowerPlacement,
-  FollowerInst
+  type FollowerPlacement,
+  type FollowerInst
 } from 'vueuc'
-import { depx, changeColor, happensIn } from 'seemly'
+import { depx, changeColor, happensIn, getPreciseEventTarget } from 'seemly'
 import { useIsMounted, useMergedState } from 'vooks'
+import type { FormValidationStatus } from '../../form/src/interface'
 import type { SelectBaseOption } from '../../select/src/interface'
 import { NInternalSelection } from '../../_internal'
 import type { InternalSelectionInst } from '../../_internal'
-import { useLocale, useTheme, useConfig, useFormItem } from '../../_mixins'
+import {
+  useLocale,
+  useTheme,
+  useConfig,
+  useFormItem,
+  useThemeClass
+} from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import { call, useAdjustedTo, warnOnce } from '../../_utils'
+import {
+  call,
+  markEventEffectPerformed,
+  useAdjustedTo,
+  warnOnce
+} from '../../_utils'
 import type { ExtractPublicPropTypes, MaybeArray } from '../../_utils'
 import { cascaderLight } from '../styles'
 import type { CascaderTheme } from '../styles'
@@ -49,9 +68,11 @@ import type {
 } from './interface'
 import { cascaderInjectionKey } from './interface'
 import style from './styles/index.cssr'
+import { type PopoverProps } from '../../popover'
 
-const cascaderProps = {
+export const cascaderProps = {
   ...(useTheme.props as ThemeProps<CascaderTheme>),
+  allowCheckingNotLoaded: Boolean,
   to: useAdjustedTo.propTo,
   bordered: {
     type: Boolean as PropType<boolean | undefined>,
@@ -74,11 +95,19 @@ const cascaderProps = {
     type: Boolean as PropType<boolean | undefined>,
     default: undefined
   },
+  disabledField: {
+    type: String,
+    default: 'disabled'
+  },
   expandTrigger: {
     type: String as PropType<ExpandTrigger>,
     default: 'click'
   },
   clearable: Boolean,
+  clearFilterAfterSelect: {
+    type: Boolean,
+    default: true
+  },
   remote: Boolean,
   onLoad: Function as PropType<OnLoad>,
   separator: {
@@ -104,6 +133,9 @@ const cascaderProps = {
     default: undefined
   },
   maxTagCount: [String, Number] as PropType<number | 'responsive'>,
+  ellipsisTagPopoverProps: Object as PropType<PopoverProps>,
+  menuProps: Object as PropType<HTMLAttributes>,
+  filterMenuProps: Object as PropType<HTMLAttributes>,
   virtualScroll: {
     type: Boolean,
     default: true
@@ -127,27 +159,44 @@ const cascaderProps = {
   renderLabel: Function as PropType<
   (option: CascaderOption, checked: boolean) => VNodeChild
   >,
+  status: String as PropType<FormValidationStatus>,
   'onUpdate:value': [Function, Array] as PropType<MaybeArray<OnUpdateValue>>,
   onUpdateValue: [Function, Array] as PropType<MaybeArray<OnUpdateValue>>,
   'onUpdate:show': [Function, Array] as PropType<
-  MaybeArray<(show: Boolean) => void>
+  MaybeArray<(show: boolean) => void>
   >,
   onUpdateShow: [Function, Array] as PropType<
-  MaybeArray<(show: Boolean) => void>
+  MaybeArray<(show: boolean) => void>
   >,
   onBlur: Function as PropType<(e: FocusEvent) => void>,
   onFocus: Function as PropType<(e: FocusEvent) => void>,
+  getColumnStyle: Function as PropType<
+  (detail: { level: number }) => string | CSSProperties
+  >,
+  renderPrefix: Function as PropType<
+  (props: {
+    option: CascaderOption
+    checked: boolean
+    node: VNode | null
+  }) => VNodeChild
+  >,
+  renderSuffix: Function as PropType<
+  (props: {
+    option: CascaderOption
+    checked: boolean
+    node: VNode | null
+  }) => VNodeChild
+  >,
   // deprecated
   onChange: [Function, Array] as PropType<MaybeArray<OnUpdateValue> | undefined>
 } as const
 
 export type CascaderProps = ExtractPublicPropTypes<typeof cascaderProps>
 
-// TODO refactor cascader menu keyboard scroll (use virtual list)
 export default defineComponent({
   name: 'Cascader',
   props: cascaderProps,
-  setup (props) {
+  setup (props, { slots }) {
     if (__DEV__) {
       watchEffect(() => {
         if (props.leafOnly) {
@@ -164,8 +213,12 @@ export default defineComponent({
         }
       })
     }
-    const { mergedBorderedRef, mergedClsPrefixRef, namespaceRef } =
-      useConfig(props)
+    const {
+      mergedBorderedRef,
+      mergedClsPrefixRef,
+      namespaceRef,
+      inlineThemeDisabled
+    } = useConfig(props)
     const themeRef = useTheme(
       'Cascader',
       '-cascader',
@@ -204,8 +257,11 @@ export default defineComponent({
       loadingKeySetRef.value.delete(key)
     }
     const treeMateRef = computed(() => {
-      const { valueField, childrenField } = props
+      const { valueField, childrenField, disabledField } = props
       return createTreeMate(props.options, {
+        getDisabled (node) {
+          return (node as any)[disabledField]
+        },
         getKey (node) {
           return (node as any)[valueField]
         },
@@ -218,7 +274,8 @@ export default defineComponent({
       const { cascade, multiple } = props
       if (multiple && Array.isArray(mergedValueRef.value)) {
         return treeMateRef.value.getCheckedKeys(mergedValueRef.value, {
-          cascade
+          cascade,
+          allowNotLoaded: props.allowCheckingNotLoaded
         })
       } else {
         return {
@@ -305,6 +362,12 @@ export default defineComponent({
     function updateHoverKey (key: Key | null): void {
       hoverKeyRef.value = key
     }
+    function getOptionsByKeys (keys: Key[]): Array<CascaderOption | null> {
+      const {
+        value: { getNode }
+      } = treeMateRef
+      return keys.map((keys) => getNode(keys)?.rawNode || null)
+    }
     function doCheck (key: Key): boolean {
       const { cascade, multiple, filterable } = props
       const {
@@ -314,25 +377,26 @@ export default defineComponent({
         try {
           const { checkedKeys } = check(key, mergedKeysRef.value.checkedKeys, {
             cascade,
-            checkStrategy: mergedCheckStrategyRef.value
+            checkStrategy: mergedCheckStrategyRef.value,
+            allowNotLoaded: props.allowCheckingNotLoaded
           })
           doUpdateValue(
             checkedKeys,
-            checkedKeys.map(
-              (checkedKey) => getNode(checkedKey)?.rawNode || null
-            ),
+            getOptionsByKeys(checkedKeys),
             checkedKeys.map((checkedKey) =>
               getRawNodePath(getPath(checkedKey)?.treeNodePath)
             )
           )
           if (filterable) focusSelectionInput()
+          keyboardKeyRef.value = key
+          hoverKeyRef.value = key
         } catch (err) {
           if (err instanceof SubtreeNotLoadedError) {
             if (cascaderMenuInstRef.value) {
               const tmNode = getNode(key)
               if (tmNode !== null) {
                 cascaderMenuInstRef.value.showErrorMessage(
-                  (tmNode.rawNode as any)[props.labelField]
+                  (tmNode.rawNode as any)[props.labelField] as string
                 )
               }
             }
@@ -371,7 +435,8 @@ export default defineComponent({
         } = treeMateRef
         const { checkedKeys } = uncheck(key, mergedKeysRef.value.checkedKeys, {
           cascade,
-          checkStrategy: mergedCheckStrategyRef.value
+          checkStrategy: mergedCheckStrategyRef.value,
+          allowNotLoaded: props.allowCheckingNotLoaded
         })
         doUpdateValue(
           checkedKeys,
@@ -380,6 +445,8 @@ export default defineComponent({
             getRawNodePath(getPath(checkedKey)?.treeNodePath)
           )
         )
+        keyboardKeyRef.value = key
+        hoverKeyRef.value = key
       }
     }
     const selectedOptionsRef = computed(() => {
@@ -388,7 +455,8 @@ export default defineComponent({
         const { getCheckedKeys, getNode } = treeMateRef.value
         const value = getCheckedKeys(checkedKeysRef.value, {
           cascade,
-          checkStrategy: mergedCheckStrategyRef.value
+          checkStrategy: mergedCheckStrategyRef.value,
+          allowNotLoaded: props.allowCheckingNotLoaded
         }).checkedKeys
         return value.map((key) => {
           const node = getNode(key)
@@ -444,6 +512,39 @@ export default defineComponent({
     const showSelectMenuRef = computed(() => {
       return !!(props.filterable && patternRef.value)
     })
+    // init hover key
+    watch(
+      mergedShowRef,
+      (show) => {
+        if (!show) return
+        if (props.multiple) return
+        const { value } = mergedValueRef
+        if (!Array.isArray(value) && value !== null) {
+          keyboardKeyRef.value = value
+          hoverKeyRef.value = value
+          void nextTick(() => {
+            if (!mergedShowRef.value) return
+            const { value: hoverKey } = hoverKeyRef
+            if (mergedValueRef.value !== null) {
+              const node = treeMateRef.value.getNode(hoverKey)
+              if (node) {
+                cascaderMenuInstRef.value?.scroll(
+                  node.level,
+                  node.index,
+                  depx(optionHeightRef.value)
+                )
+              }
+            }
+          })
+        } else {
+          keyboardKeyRef.value = null
+          hoverKeyRef.value = null
+        }
+      },
+      {
+        immediate: true
+      }
+    )
     // --- methods
     function doBlur (e: FocusEvent): void {
       const { onBlur } = props
@@ -482,7 +583,11 @@ export default defineComponent({
     function handleCascaderMenuClickOutside (e: MouseEvent): void {
       if (showSelectMenuRef.value) return
       if (mergedShowRef.value) {
-        if (!triggerInstRef.value?.$el.contains(e.target as Node)) {
+        if (
+          !triggerInstRef.value?.$el.contains(
+            getPreciseEventTarget(e) as Node | null
+          )
+        ) {
           closeMenu()
         }
       }
@@ -490,6 +595,9 @@ export default defineComponent({
     function handleSelectMenuClickOutside (e: MouseEvent): void {
       if (!showSelectMenuRef.value) return
       handleCascaderMenuClickOutside(e)
+    }
+    function clearPattern (): void {
+      if (props.clearFilterAfterSelect) patternRef.value = ''
     }
     // --- keyboard
     function move (direction: 'prev' | 'next' | 'child' | 'parent'): void {
@@ -578,14 +686,23 @@ export default defineComponent({
           break
       }
     }
-    function handleKeyUp (e: KeyboardEvent): void {
+    function handleKeydown (e: KeyboardEvent): void {
+      switch (e.key) {
+        case ' ':
+        case 'ArrowDown':
+        case 'ArrowUp':
+          if (props.filterable && mergedShowRef.value) {
+            break
+          }
+          e.preventDefault()
+          break
+      }
       if (happensIn(e, 'action')) return
-      switch (e.code) {
-        case 'Space':
+      switch (e.key) {
+        case ' ':
           if (props.filterable) return
         // eslint-disable-next-line no-fallthrough
         case 'Enter':
-        case 'NumpadEnter':
           if (!mergedShowRef.value) {
             openMenu()
           } else {
@@ -608,7 +725,7 @@ export default defineComponent({
             } else {
               if (selectMenuInstRef.value) {
                 const hasCorrespondingOption = selectMenuInstRef.value.enter()
-                if (hasCorrespondingOption) patternRef.value = ''
+                if (hasCorrespondingOption) clearPattern()
               }
             }
           }
@@ -648,11 +765,14 @@ export default defineComponent({
           }
           break
         case 'Escape':
-          closeMenu(true)
+          if (mergedShowRef.value) {
+            markEventEffectPerformed(e)
+            closeMenu(true)
+          }
       }
     }
-    function handleMenuKeyUp (e: KeyboardEvent): void {
-      handleKeyUp(e)
+    function handleMenuKeydown (e: KeyboardEvent): void {
+      handleKeydown(e)
     }
     // --- search
     function handleClear (e: MouseEvent): void {
@@ -716,22 +836,14 @@ export default defineComponent({
     function handleDeleteOption (option: SelectBaseOption): void {
       const { multiple } = props
       const { value: mergedValue } = mergedValueRef
-      if (multiple && Array.isArray(mergedValue)) {
+      if (
+        multiple &&
+        Array.isArray(mergedValue) &&
+        option.value !== undefined
+      ) {
         doUncheck(option.value)
       } else {
         doUpdateValue(null, null, null)
-      }
-    }
-    function handleKeyDown (e: KeyboardEvent): void {
-      switch (e.code) {
-        case 'Space':
-        case 'ArrowDown':
-        case 'ArrowUp':
-          if (props.filterable && mergedShowRef.value) {
-            return
-          }
-          e.preventDefault()
-          break
       }
     }
     // sync position
@@ -741,7 +853,22 @@ export default defineComponent({
     function syncCascaderMenuPosition (): void {
       cascaderMenuFollowerRef.value?.syncPosition()
     }
+    function handleTriggerResize (): void {
+      if (mergedShowRef.value) {
+        if (showSelectMenuRef.value) {
+          syncSelectMenuPosition()
+        } else {
+          syncCascaderMenuPosition()
+        }
+      }
+    }
+    const showCheckboxRef = computed(() => {
+      if (props.multiple && props.cascade) return true
+      if (mergedCheckStrategyRef.value !== 'child') return true
+      return false
+    })
     provide(cascaderInjectionKey, {
+      slots,
       mergedClsPrefixRef,
       mergedThemeRef: themeRef,
       mergedValueRef,
@@ -749,6 +876,7 @@ export default defineComponent({
       indeterminateKeysRef,
       hoverKeyPathRef,
       mergedCheckStrategyRef,
+      showCheckboxRef,
       cascadeRef: toRef(props, 'cascade'),
       multipleRef: toRef(props, 'multiple'),
       keyboardKeyRef,
@@ -763,6 +891,9 @@ export default defineComponent({
       localeRef,
       labelFieldRef: toRef(props, 'labelField'),
       renderLabelRef: toRef(props, 'renderLabel'),
+      getColumnStyleRef: toRef(props, 'getColumnStyle'),
+      renderPrefixRef: toRef(props, 'renderPrefix'),
+      renderSuffixRef: toRef(props, 'renderSuffix'),
       syncCascaderMenuPosition,
       syncSelectMenuPosition,
       updateKeyboardKey,
@@ -773,7 +904,8 @@ export default defineComponent({
       doUncheck,
       closeMenu,
       handleSelectMenuClickOutside,
-      handleCascaderMenuClickOutside
+      handleCascaderMenuClickOutside,
+      clearPattern
     })
     const exposedMethods: CascaderInst = {
       focus: () => {
@@ -781,10 +913,81 @@ export default defineComponent({
       },
       blur: () => {
         triggerInstRef.value?.blur()
+      },
+      getCheckedData: () => {
+        if (showCheckboxRef.value) {
+          const checkedKeys = checkedKeysRef.value
+          return {
+            keys: checkedKeys,
+            options: getOptionsByKeys(checkedKeys)
+          }
+        }
+        return {
+          keys: [],
+          options: []
+        }
+      },
+      getIndeterminateData: () => {
+        if (showCheckboxRef.value) {
+          const indeterminateKeys = indeterminateKeysRef.value
+          return {
+            keys: indeterminateKeys,
+            options: getOptionsByKeys(indeterminateKeys)
+          }
+        }
+        return {
+          keys: [],
+          options: []
+        }
       }
     }
+    const cssVarsRef = computed(() => {
+      const {
+        self: {
+          optionArrowColor,
+          optionTextColor,
+          optionTextColorActive,
+          optionTextColorDisabled,
+          optionCheckMarkColor,
+          menuColor,
+          menuBoxShadow,
+          menuDividerColor,
+          menuBorderRadius,
+          menuHeight,
+          optionColorHover,
+          optionHeight,
+          optionFontSize,
+          loadingColor,
+          columnWidth
+        },
+        common: { cubicBezierEaseInOut }
+      } = themeRef.value
+      return {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-menu-border-radius': menuBorderRadius,
+        '--n-menu-box-shadow': menuBoxShadow,
+        '--n-menu-height': menuHeight,
+        '--n-column-width': columnWidth,
+        '--n-menu-color': menuColor,
+        '--n-menu-divider-color': menuDividerColor,
+        '--n-option-height': optionHeight,
+        '--n-option-font-size': optionFontSize,
+        '--n-option-text-color': optionTextColor,
+        '--n-option-text-color-disabled': optionTextColorDisabled,
+        '--n-option-text-color-active': optionTextColorActive,
+        '--n-option-color-hover': optionColorHover,
+        '--n-option-check-mark-color': optionCheckMarkColor,
+        '--n-option-arrow-color': optionArrowColor,
+        '--n-menu-mask-color': changeColor(menuColor, { alpha: 0.75 }),
+        '--n-loading-color': loadingColor
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('cascader', undefined, cssVarsRef, props)
+      : undefined
     return {
       ...exposedMethods,
+      handleTriggerResize,
       mergedStatus: mergedStatusRef,
       selectMenuFollowerRef,
       cascaderMenuFollowerRef,
@@ -809,7 +1012,7 @@ export default defineComponent({
       handleMenuTabout,
       handleMenuFocus,
       handleMenuBlur,
-      handleMenuKeyUp,
+      handleMenuKeydown,
       handleMenuMousedown,
       handleTriggerFocus,
       handleTriggerBlur,
@@ -817,56 +1020,17 @@ export default defineComponent({
       handleClear,
       handleDeleteOption,
       handlePatternInput,
-      handleKeyDown,
-      handleKeyUp,
+      handleKeydown,
       focused: focusedRef,
       optionHeight: optionHeightRef,
       mergedTheme: themeRef,
-      cssVars: computed(() => {
-        const {
-          self: {
-            optionArrowColor,
-            optionTextColor,
-            optionTextColorActive,
-            optionTextColorDisabled,
-            optionCheckMarkColor,
-            menuColor,
-            menuBoxShadow,
-            menuDividerColor,
-            menuBorderRadius,
-            menuHeight,
-            optionColorHover,
-            optionHeight,
-            optionFontSize,
-            loadingColor,
-            columnWidth
-          },
-          common: { cubicBezierEaseInOut }
-        } = themeRef.value
-        return {
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-menu-border-radius': menuBorderRadius,
-          '--n-menu-box-shadow': menuBoxShadow,
-          '--n-menu-height': menuHeight,
-          '--n-column-width': columnWidth,
-          '--n-menu-color': menuColor,
-          '--n-menu-divider-color': menuDividerColor,
-          '--n-option-height': optionHeight,
-          '--n-option-font-size': optionFontSize,
-          '--n-option-text-color': optionTextColor,
-          '--n-option-text-color-disabled': optionTextColorDisabled,
-          '--n-option-text-color-active': optionTextColorActive,
-          '--n-option-color-hover': optionColorHover,
-          '--n-option-check-mark-color': optionCheckMarkColor,
-          '--n-option-arrow-color': optionArrowColor,
-          '--n-menu-mask-color': changeColor(menuColor, { alpha: 0.75 }),
-          '--n-loading-color': loadingColor
-        }
-      })
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
-    const { mergedClsPrefix, $slots } = this
+    const { mergedClsPrefix } = this
     return (
       <div class={`${mergedClsPrefix}-cascader`}>
         <VBinder>
@@ -876,10 +1040,12 @@ export default defineComponent({
                 {{
                   default: () => (
                     <NInternalSelection
+                      onResize={this.handleTriggerResize}
                       ref="triggerInstRef"
                       status={this.mergedStatus}
                       clsPrefix={mergedClsPrefix}
                       maxTagCount={this.maxTagCount}
+                      ellipsisTagPopoverProps={this.ellipsisTagPopoverProps}
                       bordered={this.mergedBordered}
                       size={this.mergedSize}
                       theme={this.mergedTheme.peers.InternalSelection}
@@ -902,9 +1068,12 @@ export default defineComponent({
                       onClear={this.handleClear}
                       onDeleteOption={this.handleDeleteOption}
                       onPatternInput={this.handlePatternInput}
-                      onKeydown={this.handleKeyDown}
-                      onKeyup={this.handleKeyUp}
-                    />
+                      onKeydown={this.handleKeydown}
+                    >
+                      {{
+                        arrow: () => this.$slots.arrow?.()
+                      }}
+                    </NInternalSelection>
                   )
                 }}
               </VTarget>,
@@ -919,22 +1088,34 @@ export default defineComponent({
                 to={this.adjustedTo}
               >
                 {{
-                  default: () => (
-                    <CascaderMenu
-                      ref="cascaderMenuInstRef"
-                      value={this.mergedValue}
-                      show={this.mergedShow && !this.showSelectMenu}
-                      menuModel={this.menuModel}
-                      style={this.cssVars as CSSProperties}
-                      onFocus={this.handleMenuFocus}
-                      onBlur={this.handleMenuBlur}
-                      onKeyup={this.handleMenuKeyUp}
-                      onMousedown={this.handleMenuMousedown}
-                      onTabout={this.handleMenuTabout}
-                    >
-                      {$slots}
-                    </CascaderMenu>
-                  )
+                  default: () => {
+                    this.onRender?.()
+                    const { menuProps } = this
+                    return (
+                      <CascaderMenu
+                        {...menuProps}
+                        ref="cascaderMenuInstRef"
+                        class={[this.themeClass, menuProps?.class]}
+                        value={this.mergedValue}
+                        show={this.mergedShow && !this.showSelectMenu}
+                        menuModel={this.menuModel}
+                        style={[
+                          this.cssVars as CSSProperties,
+                          menuProps?.style
+                        ]}
+                        onFocus={this.handleMenuFocus}
+                        onBlur={this.handleMenuBlur}
+                        onKeydown={this.handleMenuKeydown}
+                        onMousedown={this.handleMenuMousedown}
+                        onTabout={this.handleMenuTabout}
+                      >
+                        {{
+                          action: () => this.$slots.action?.(),
+                          empty: () => this.$slots.empty?.()
+                        }}
+                      </CascaderMenu>
+                    )
+                  }
                 }}
               </VFollower>,
               <VFollower
@@ -948,20 +1129,29 @@ export default defineComponent({
                 teleportDisabled={this.adjustedTo === useAdjustedTo.tdkey}
               >
                 {{
-                  default: () => (
-                    <CascaderSelectMenu
-                      ref="selectMenuInstRef"
-                      value={this.mergedValue}
-                      show={this.mergedShow && this.showSelectMenu}
-                      pattern={this.pattern}
-                      multiple={this.multiple}
-                      tmNodes={this.treeMate.treeNodes}
-                      filter={this.filter}
-                      labelField={this.labelField}
-                      separator={this.separator}
-                      style={this.cssVars as CSSProperties}
-                    />
-                  )
+                  default: () => {
+                    this.onRender?.()
+                    const { filterMenuProps } = this
+                    return (
+                      <CascaderSelectMenu
+                        {...filterMenuProps}
+                        ref="selectMenuInstRef"
+                        class={[this.themeClass, filterMenuProps?.class]}
+                        value={this.mergedValue}
+                        show={this.mergedShow && this.showSelectMenu}
+                        pattern={this.pattern}
+                        multiple={this.multiple}
+                        tmNodes={this.treeMate.treeNodes}
+                        filter={this.filter}
+                        labelField={this.labelField}
+                        separator={this.separator}
+                        style={[
+                          this.cssVars as CSSProperties,
+                          filterMenuProps?.style
+                        ]}
+                      />
+                    )
+                  }
                 }}
               </VFollower>
             ]

@@ -1,12 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { defineComponent, h, Fragment, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
-import { NPopover, PopoverInst } from '../index'
+import { NPopover, type PopoverInst } from '../index'
 import { createId } from 'seemly'
 
 const popoverBodyHeader = '.n-popover__header'
+const popoverBodyFooter = '.n-popover__footer'
 
 async function sleep (ms: number): Promise<void> {
-  return await new Promise((resolve) => {
+  await new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
 }
@@ -127,7 +129,7 @@ describe('n-popover', () => {
     wrapper.unmount()
   })
 
-  it('header slot', () => {
+  it('header & footer slots', () => {
     const wrapper = mount(NPopover, {
       attachTo: document.body,
       props: {
@@ -136,11 +138,15 @@ describe('n-popover', () => {
       slots: {
         trigger: () => <div>click</div>,
         header: () => <div>I am title</div>,
-        default: () => <div>star kirby</div>
+        default: () => <div>star kirby</div>,
+        footer: () => <div>I am footer</div>
       }
     })
     expect(document.querySelector(popoverBodyHeader)?.textContent).toEqual(
       'I am title'
+    )
+    expect(document.querySelector(popoverBodyFooter)?.textContent).toEqual(
+      'I am footer'
     )
     wrapper.unmount()
   })

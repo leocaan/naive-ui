@@ -5,10 +5,12 @@ import { alertLight } from '../alert/styles'
 import { anchorLight } from '../anchor/styles'
 import { autoCompleteLight } from '../auto-complete/styles'
 import { avatarLight } from '../avatar/styles'
+import { avatarGroupLight } from '../avatar-group/styles'
 import { backTopLight } from '../back-top/styles'
 import { badgeLight } from '../badge/styles'
 import { breadcrumbLight } from '../breadcrumb/styles'
 import { buttonLight } from '../button/styles'
+import { buttonGroupLight } from '../button-group/styles'
 import { calendarLight } from '../calendar/styles'
 import { cardLight } from '../card/styles'
 import { carouselLight } from '../carousel/styles'
@@ -30,7 +32,9 @@ import { dynamicTagsLight } from '../dynamic-tags/styles'
 import { elementLight } from '../element/styles'
 import { ellipsisLight } from '../ellipsis/styles'
 import { emptyLight } from '../empty/styles'
+import { equationLight } from '../equation/styles'
 import { formLight } from '../form/styles'
+import { floatButtonLight } from '../float-button/styles'
 import { gradientTextLight } from '../gradient-text/styles'
 import { iconLight } from '../icon/styles'
 import { iconWrapperLight } from '../icon-wrapper/styles'
@@ -38,6 +42,7 @@ import { imageLight } from '../image/styles'
 import { inputLight } from '../input/styles'
 import { inputNumberLight } from '../input-number/styles'
 import { layoutLight } from '../layout/styles'
+import { legacyTransferLight } from '../legacy-transfer/styles'
 import { listLight } from '../list/styles'
 import { loadingBarLight } from '../loading-bar/styles'
 import { logLight } from '../log/styles'
@@ -52,9 +57,11 @@ import { popconfirmLight } from '../popconfirm/styles'
 import { popoverLight } from '../popover/styles'
 import { popselectLight } from '../popselect/styles'
 import { progressLight } from '../progress/styles'
+import { qrcodeLight } from '../qr-code/styles'
 import { radioLight } from '../radio/styles'
 import { rateLight } from '../rate/styles'
 import { resultLight } from '../result/styles'
+import { rowLight } from '../legacy-grid/styles'
 import { scrollbarLight } from '../_internal/scrollbar/styles'
 import { selectLight } from '../select/styles'
 import { skeletonLight } from '../skeleton/styles'
@@ -76,7 +83,11 @@ import { typographyLight } from '../typography/styles'
 import { treeLight } from '../tree/styles'
 import { treeSelectLight } from '../tree-select/styles'
 import { uploadLight } from '../upload/styles'
+import { watermarkLight } from '../watermark/styles'
+import { splitLight } from '../split/styles'
 import type { BuiltInGlobalTheme } from './interface'
+import { flexLight } from '../flex/styles'
+import { floatButtonGroupLight } from '../float-button-group/styles'
 
 export const lightTheme: BuiltInGlobalTheme = {
   name: 'light',
@@ -85,10 +96,12 @@ export const lightTheme: BuiltInGlobalTheme = {
   Anchor: anchorLight,
   AutoComplete: autoCompleteLight,
   Avatar: avatarLight,
+  AvatarGroup: avatarGroupLight,
   BackTop: backTopLight,
   Badge: badgeLight,
   Breadcrumb: breadcrumbLight,
   Button: buttonLight,
+  ButtonGroup: buttonGroupLight,
   Calendar: calendarLight,
   Card: cardLight,
   Carousel: carouselLight,
@@ -109,7 +122,9 @@ export const lightTheme: BuiltInGlobalTheme = {
   DynamicTags: dynamicTagsLight,
   Element: elementLight,
   Empty: emptyLight,
+  Equation: equationLight,
   Ellipsis: ellipsisLight,
+  Flex: flexLight,
   Form: formLight,
   GradientText: gradientTextLight,
   Icon: iconLight,
@@ -118,6 +133,7 @@ export const lightTheme: BuiltInGlobalTheme = {
   Input: inputLight,
   InputNumber: inputNumberLight,
   Layout: layoutLight,
+  LegacyTransfer: legacyTransferLight,
   List: listLight,
   LoadingBar: loadingBarLight,
   Log: logLight,
@@ -132,8 +148,10 @@ export const lightTheme: BuiltInGlobalTheme = {
   Popover: popoverLight,
   Popselect: popselectLight,
   Progress: progressLight,
+  QrCode: qrcodeLight,
   Radio: radioLight,
   Rate: rateLight,
+  Row: rowLight,
   Result: resultLight,
   Scrollbar: scrollbarLight,
   Skeleton: skeletonLight,
@@ -155,5 +173,9 @@ export const lightTheme: BuiltInGlobalTheme = {
   Tree: treeLight,
   TreeSelect: treeSelectLight,
   Typography: typographyLight,
-  Upload: uploadLight
+  Upload: uploadLight,
+  Watermark: watermarkLight,
+  Split: splitLight,
+  FloatButton: floatButtonLight,
+  FloatButtonGroup: floatButtonGroupLight
 }

@@ -3,13 +3,15 @@ import {
   defineComponent,
   h,
   inject,
-  PropType,
+  type PropType,
   provide,
-  Ref,
-  CSSProperties
+  type Ref,
+  type CSSProperties,
+  ref
 } from 'vue'
-import { TreeNode } from 'treemate'
+import type { TreeNode } from 'treemate'
 import { renderArrow } from '../../popover/src/PopoverBody'
+import { NxScrollbar } from '../../_internal/scrollbar'
 import NDropdownDivider from './DropdownDivider'
 // eslint-disable-next-line import/no-cycle
 import NDropdownGroup from './DropdownGroup'
@@ -23,12 +25,15 @@ import {
   isRenderNode
 } from './utils'
 import { dropdownInjectionKey, dropdownMenuInjectionKey } from './context'
-import {
+import type {
   DropdownGroupOption,
   DropdownIgnoredOption,
   DropdownOption,
   DropdownRenderOption
 } from './interface'
+import { modalBodyInjectionKey } from '../../modal/src/interface'
+import { drawerBodyInjectionKey } from '../../drawer/src/interface'
+import { popoverBodyInjectionKey } from '../../popover/src/interface'
 
 export interface NDropdownMenuInjection {
   showIconRef: Ref<boolean>
@@ -38,6 +43,7 @@ export interface NDropdownMenuInjection {
 export default defineComponent({
   name: 'DropdownMenu',
   props: {
+    scrollable: Boolean,
     showArrow: Boolean,
     arrowStyle: [String, Object] as PropType<string | CSSProperties>,
     clsPrefix: {
@@ -86,48 +92,75 @@ export default defineComponent({
         })
       })
     })
+    const bodyRef = ref<HTMLElement | null>(null)
+    provide(modalBodyInjectionKey, null)
+    provide(drawerBodyInjectionKey, null)
+    provide(popoverBodyInjectionKey, bodyRef)
+    return {
+      bodyRef
+    }
   },
   render () {
-    const { parentKey, clsPrefix } = this
+    const { parentKey, clsPrefix, scrollable } = this
+    const menuOptionsNode = this.tmNodes.map((tmNode) => {
+      const { rawNode } = tmNode
+      if (rawNode.show === false) return null
+      if (isRenderNode(rawNode)) {
+        return (
+          <NDropdownRenderOption
+            tmNode={tmNode as unknown as TreeNode<DropdownRenderOption>}
+            key={tmNode.key}
+          />
+        )
+      }
+      if (isDividerNode(rawNode)) {
+        return <NDropdownDivider clsPrefix={clsPrefix} key={tmNode.key} />
+      }
+      if (isGroupNode(rawNode)) {
+        return (
+          <NDropdownGroup
+            clsPrefix={clsPrefix}
+            tmNode={tmNode}
+            parentKey={parentKey}
+            key={tmNode.key}
+          />
+        )
+      }
+      return (
+        <NDropdownOption
+          clsPrefix={clsPrefix}
+          tmNode={tmNode}
+          parentKey={parentKey}
+          key={tmNode.key}
+          props={rawNode.props}
+          scrollable={scrollable}
+        />
+      )
+    })
     return (
-      <div class={`${clsPrefix}-dropdown-menu`}>
-        {this.tmNodes.map((tmNode) => {
-          const { rawNode } = tmNode
-          if (isRenderNode(rawNode)) {
-            return (
-              <NDropdownRenderOption
-                tmNode={tmNode as unknown as TreeNode<DropdownRenderOption>}
-                key={tmNode.key}
-              />
-            )
-          }
-          if (isDividerNode(rawNode)) {
-            return <NDropdownDivider clsPrefix={clsPrefix} key={tmNode.key} />
-          }
-          if (isGroupNode(rawNode)) {
-            return (
-              <NDropdownGroup
-                clsPrefix={clsPrefix}
-                tmNode={tmNode}
-                parentKey={parentKey}
-                key={tmNode.key}
-              />
-            )
-          }
-          return (
-            <NDropdownOption
-              clsPrefix={clsPrefix}
-              tmNode={tmNode}
-              parentKey={parentKey}
-              key={tmNode.key}
-              props={rawNode.props}
-            />
-          )
-        })}
+      <div
+        class={[
+          `${clsPrefix}-dropdown-menu`,
+          scrollable && `${clsPrefix}-dropdown-menu--scrollable`
+        ]}
+        ref="bodyRef"
+      >
+        {scrollable ? (
+          <NxScrollbar contentClass={`${clsPrefix}-dropdown-menu__content`}>
+            {{
+              default: () => menuOptionsNode
+            }}
+          </NxScrollbar>
+        ) : (
+          menuOptionsNode
+        )}
         {this.showArrow
           ? renderArrow({
             clsPrefix,
-            arrowStyle: this.arrowStyle
+            arrowStyle: this.arrowStyle,
+            arrowClass: undefined,
+            arrowWrapperClass: undefined,
+            arrowWrapperStyle: undefined
           })
           : null}
       </div>

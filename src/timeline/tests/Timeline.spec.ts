@@ -12,7 +12,7 @@ describe('n-timeline', () => {
     expect(wrapper.find('.n-timeline').classes()).toContain(
       'n-timeline--left-placement'
     )
-    await wrapper.setProps({ 'item-placement': 'right' })
+    await wrapper.setProps({ itemPlacement: 'right' })
     expect(wrapper.find('.n-timeline').classes()).toContain(
       'n-timeline--right-placement'
     )
@@ -139,6 +139,20 @@ describe('n-timeline-item', () => {
         )
       }
     )
+  })
+
+  it('should work with `line-type` prop', () => {
+    ;(['default', 'dashed'] as const).forEach((lineType) => {
+      const wrapper = mount(NTimeline, {
+        slots: {
+          default: () => h(NTimelineItem, { title: 'test-title', lineType })
+        }
+      })
+
+      expect(wrapper.find('.n-timeline-item').classes()).toContain(
+        `n-timeline-item--${lineType}-line-type`
+      )
+    })
   })
 
   it('should work with `default`, `footer`, `header` slots', async () => {

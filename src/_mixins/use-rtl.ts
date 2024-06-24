@@ -1,13 +1,13 @@
-import { Ref, onBeforeMount, watchEffect, computed } from 'vue'
+import { type Ref, onBeforeMount, watchEffect, computed } from 'vue'
 import { exists } from 'css-render'
 import { useSsrAdapter } from '@css-render/vue3-ssr'
-import {
+import type {
   RtlEnabledState,
   RtlItem
 } from '../config-provider/src/internal-interface'
 import { cssrAnchorMetaName } from './common'
 
-export default function useRtl (
+export function useRtl (
   mountId: string,
   rtlStateRef: Ref<RtlEnabledState | undefined> | undefined,
   clsPrefixRef: Ref<string>

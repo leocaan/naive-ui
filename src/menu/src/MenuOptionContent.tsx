@@ -1,9 +1,9 @@
-import { computed, defineComponent, h, inject, PropType } from 'vue'
+import { computed, defineComponent, h, inject, type PropType } from 'vue'
 import { ChevronDownFilledIcon } from '../../_internal/icons'
 import { render } from '../../_utils'
 import { NBaseIcon } from '../../_internal'
 import { menuInjectionKey } from './context'
-import { TmNode } from './interface'
+import type { TmNode } from './interface'
 
 export default defineComponent({
   name: 'MenuOptionContent',
@@ -17,6 +17,7 @@ export default defineComponent({
     childActive: Boolean,
     hover: Boolean,
     paddingLeft: Number,
+    selected: Boolean,
     maxIconSize: {
       type: Number,
       required: true
@@ -37,7 +38,8 @@ export default defineComponent({
     tmNode: {
       type: Object as PropType<TmNode>,
       required: true
-    }
+    },
+    isEllipsisPlaceholder: Boolean
   },
   setup (props) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -68,11 +70,14 @@ export default defineComponent({
     const icon = renderIcon ? renderIcon(tmNode.rawNode) : render(this.icon)
     return (
       <div
-        onClick={this.onClick}
+        onClick={(e) => {
+          this.onClick?.(e)
+        }}
         role="none"
         class={[
           `${clsPrefix}-menu-item-content`,
           {
+            [`${clsPrefix}-menu-item-content--selected`]: this.selected,
             [`${clsPrefix}-menu-item-content--collapsed`]: this.collapsed,
             [`${clsPrefix}-menu-item-content--child-active`]: this.childActive,
             [`${clsPrefix}-menu-item-content--disabled`]: this.disabled,
@@ -91,7 +96,11 @@ export default defineComponent({
           </div>
         )}
         <div class={`${clsPrefix}-menu-item-content-header`} role="none">
-          {renderLabel ? renderLabel(tmNode.rawNode) : render(this.title)}
+          {this.isEllipsisPlaceholder
+            ? this.title
+            : renderLabel
+              ? renderLabel(tmNode.rawNode)
+              : render(this.title)}
           {this.extra || renderExtra ? (
             <span class={`${clsPrefix}-menu-item-content-header__extra`}>
               {' '}

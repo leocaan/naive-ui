@@ -3,10 +3,12 @@ import { alertDark } from '../alert/styles'
 import { anchorDark } from '../anchor/styles'
 import { autoCompleteDark } from '../auto-complete/styles'
 import { avatarDark } from '../avatar/styles'
+import { avatarGroupDark } from '../avatar-group/styles'
 import { backTopDark } from '../back-top/styles'
 import { badgeDark } from '../badge/styles'
 import { breadcrumbDark } from '../breadcrumb/styles'
 import { buttonDark } from '../button/styles'
+import { buttonGroupDark } from '../button-group/styles'
 import { calendarDark } from '../calendar/styles'
 import { cardDark } from '../card/styles'
 import { carouselDark } from '../carousel/styles'
@@ -28,7 +30,9 @@ import { dynamicTagsDark } from '../dynamic-tags/styles'
 import { elementDark } from '../element/styles'
 import { ellipsisDark } from '../ellipsis/styles'
 import { emptyDark } from '../empty/styles'
+import { equationDark } from '../equation/styles'
 import { formDark } from '../form/styles'
+import { floatButtonDark } from '../float-button/styles'
 import { gradientTextDark } from '../gradient-text/styles'
 import { iconDark } from '../icon/styles'
 import { iconWrapperDark } from '../icon-wrapper/styles'
@@ -36,6 +40,7 @@ import { imageDark } from '../image/styles'
 import { inputDark } from '../input/styles'
 import { inputNumberDark } from '../input-number/styles'
 import { layoutDark } from '../layout/styles'
+import { legacyTransferDark } from '../legacy-transfer/styles'
 import { listDark } from '../list/styles'
 import { loadingBarDark } from '../loading-bar/styles'
 import { logDark } from '../log/styles'
@@ -50,9 +55,11 @@ import { popconfirmDark } from '../popconfirm/styles'
 import { popoverDark } from '../popover/styles'
 import { popselectDark } from '../popselect/styles'
 import { progressDark } from '../progress/styles'
+import { qrcodeDark } from '../qr-code/styles'
 import { radioDark } from '../radio/styles'
 import { rateDark } from '../rate/styles'
 import { resultDark } from '../result/styles'
+import { rowDark } from '../legacy-grid/styles'
 import { scrollbarDark } from '../_internal/scrollbar/styles'
 import { selectDark } from '../select/styles'
 import { skeletonDark } from '../skeleton/styles'
@@ -74,7 +81,11 @@ import { treeSelectDark } from '../tree-select/styles'
 import { typographyDark } from '../typography/styles'
 import { treeDark } from '../tree/styles'
 import { uploadDark } from '../upload/styles'
+import { watermarkDark } from '../watermark/styles'
+import { splitDark } from '../split/styles'
 import type { BuiltInGlobalTheme } from './interface'
+import { flexDark } from '../styles'
+import { floatButtonGroupDark } from '../float-button-group/styles'
 
 export const darkTheme: BuiltInGlobalTheme = {
   name: 'dark',
@@ -83,10 +94,12 @@ export const darkTheme: BuiltInGlobalTheme = {
   Anchor: anchorDark,
   AutoComplete: autoCompleteDark,
   Avatar: avatarDark,
+  AvatarGroup: avatarGroupDark,
   BackTop: backTopDark,
   Badge: badgeDark,
   Breadcrumb: breadcrumbDark,
   Button: buttonDark,
+  ButtonGroup: buttonGroupDark,
   Calendar: calendarDark,
   Card: cardDark,
   Carousel: carouselDark,
@@ -108,6 +121,8 @@ export const darkTheme: BuiltInGlobalTheme = {
   Element: elementDark,
   Empty: emptyDark,
   Ellipsis: ellipsisDark,
+  Equation: equationDark,
+  Flex: flexDark,
   Form: formDark,
   GradientText: gradientTextDark,
   Icon: iconDark,
@@ -115,6 +130,7 @@ export const darkTheme: BuiltInGlobalTheme = {
   Image: imageDark,
   Input: inputDark,
   InputNumber: inputNumberDark,
+  LegacyTransfer: legacyTransferDark,
   Layout: layoutDark,
   List: listDark,
   LoadingBar: loadingBarDark,
@@ -130,9 +146,11 @@ export const darkTheme: BuiltInGlobalTheme = {
   Popover: popoverDark,
   Popselect: popselectDark,
   Progress: progressDark,
+  QrCode: qrcodeDark,
   Radio: radioDark,
   Rate: rateDark,
   Result: resultDark,
+  Row: rowDark,
   Scrollbar: scrollbarDark,
   Select: selectDark,
   Skeleton: skeletonDark,
@@ -153,5 +171,9 @@ export const darkTheme: BuiltInGlobalTheme = {
   Tree: treeDark,
   TreeSelect: treeSelectDark,
   Typography: typographyDark,
-  Upload: uploadDark
+  Upload: uploadDark,
+  Watermark: watermarkDark,
+  Split: splitDark,
+  FloatButton: floatButtonDark,
+  FloatButtonGroup: floatButtonGroupDark
 }

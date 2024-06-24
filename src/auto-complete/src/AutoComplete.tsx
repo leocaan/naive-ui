@@ -5,38 +5,45 @@ import {
   computed,
   defineComponent,
   Transition,
-  PropType,
+  type PropType,
   withDirectives,
-  CSSProperties,
-  InputHTMLAttributes,
-  watchEffect
+  type CSSProperties,
+  type InputHTMLAttributes,
+  watchEffect,
+  type HTMLAttributes
 } from 'vue'
-import { createTreeMate, TreeNode } from 'treemate'
-import { VBinder, VTarget, VFollower, FollowerPlacement } from 'vueuc'
+import { createTreeMate, type TreeNode } from 'treemate'
+import { VBinder, VTarget, VFollower, type FollowerPlacement } from 'vueuc'
 import { clickoutside } from 'vdirs'
 import { useIsMounted, useMergedState } from 'vooks'
-import {
+import { getPreciseEventTarget } from 'seemly'
+import type {
   RenderOption,
   RenderLabel
 } from '../../_internal/select-menu/src/interface'
-import { tmOptions } from '../../select/src/utils'
-import { useFormItem, useTheme, useConfig } from '../../_mixins'
-import type { ThemeProps } from '../../_mixins'
-import {
-  call,
-  useAdjustedTo,
-  MaybeArray,
-  getFirstSlotVNode,
-  warnOnce
-} from '../../_utils'
-import type { ExtractPublicPropTypes } from '../../_utils'
-import { NInternalSelectMenu, InternalSelectMenuRef } from '../../_internal'
-import { NInput } from '../../input'
+import { createTmOptions } from '../../select/src/utils'
+import type { FormValidationStatus } from '../../form/src/interface'
 import type {
   SelectBaseOption,
   SelectGroupOption,
   SelectIgnoredOption
 } from '../../select/src/interface'
+import { useFormItem, useTheme, useConfig, useThemeClass } from '../../_mixins'
+import type { ThemeProps } from '../../_mixins'
+import {
+  call,
+  useAdjustedTo,
+  type MaybeArray,
+  getFirstSlotVNode,
+  warnOnce,
+  type ExtractPublicPropTypes
+} from '../../_utils'
+import {
+  NInternalSelectMenu,
+  type InternalSelectMenuRef
+} from '../../_internal'
+import type { InputInst } from '../../input'
+import { NInput } from '../../input'
 import { autoCompleteLight } from '../styles'
 import type { AutoCompleteTheme } from '../styles'
 import { mapAutoCompleteOptionsToSelectOptions } from './utils'
@@ -44,14 +51,18 @@ import type {
   AutoCompleteOptions,
   OnUpdateValue,
   OnSelect,
+  OnSelectImpl,
   OnUpdateImpl,
-  AutoCompleteOption
+  AutoCompleteOption,
+  AutoCompleteInst
 } from './interface'
 import style from './styles/index.cssr'
 
-const autoCompleteProps = {
+export const autoCompleteProps = {
   ...(useTheme.props as ThemeProps<AutoCompleteTheme>),
   to: useAdjustedTo.propTo,
+  menuProps: Object as PropType<HTMLAttributes>,
+  append: Boolean,
   bordered: {
     type: Boolean as PropType<boolean | undefined>,
     default: undefined
@@ -81,6 +92,7 @@ const autoCompleteProps = {
   blurAfterSelect: Boolean,
   clearAfterSelect: Boolean,
   getShow: Function as PropType<(inputValue: string) => boolean>,
+  showEmpty: Boolean,
   inputProps: Object as PropType<InputHTMLAttributes>,
   renderOption: Function as PropType<RenderOption>,
   renderLabel: Function as PropType<RenderLabel>,
@@ -90,6 +102,7 @@ const autoCompleteProps = {
     default: () => []
   },
   zIndex: Number,
+  status: String as PropType<FormValidationStatus>,
   'onUpdate:value': [Function, Array] as PropType<MaybeArray<OnUpdateValue>>,
   onUpdateValue: [Function, Array] as PropType<MaybeArray<OnUpdateValue>>,
   onSelect: [Function, Array] as PropType<MaybeArray<OnSelect>>,
@@ -115,8 +128,12 @@ export default defineComponent({
         }
       })
     }
-    const { mergedBorderedRef, namespaceRef, mergedClsPrefixRef } =
-      useConfig(props)
+    const {
+      mergedBorderedRef,
+      namespaceRef,
+      mergedClsPrefixRef,
+      inlineThemeDisabled
+    } = useConfig(props)
     const formItem = useFormItem(props)
     const { mergedSizeRef, mergedDisabledRef, mergedStatusRef } = formItem
     const triggerElRef = ref<HTMLElement | null>(null)
@@ -153,13 +170,13 @@ export default defineComponent({
       return (
         mergedShowOptionsRef.value &&
         canBeActivatedRef.value &&
-        !!selectOptionsRef.value.length
+        (props.showEmpty ? true : !!selectOptionsRef.value.length)
       )
     })
     const treeMateRef = computed(() =>
       createTreeMate<SelectBaseOption, SelectGroupOption, SelectIgnoredOption>(
         selectOptionsRef.value,
-        tmOptions
+        createTmOptions('value', 'children')
       )
     )
     function doUpdateValue (value: string | null): void {
@@ -175,7 +192,7 @@ export default defineComponent({
     function doSelect (value: string | number): void {
       const { onSelect } = props
       const { nTriggerFormInput, nTriggerFormChange } = formItem
-      if (onSelect) call(onSelect, value)
+      if (onSelect) call(onSelect as OnSelectImpl, value)
       nTriggerFormInput()
       nTriggerFormChange()
     }
@@ -200,9 +217,8 @@ export default defineComponent({
       }, 0)
     }
     function handleKeyDown (e: KeyboardEvent): void {
-      switch (e.code) {
+      switch (e.key) {
         case 'Enter':
-        case 'NumpadEnter':
           if (!isComposingRef.value) {
             const pendingOptionTmNode = menuInstRef.value?.getPendingTmNode()
             if (pendingOptionTmNode) {
@@ -220,13 +236,17 @@ export default defineComponent({
       }
     }
     function select (option: AutoCompleteOption): void {
-      if (option) {
+      if (option?.value !== undefined) {
+        doSelect(option.value)
         if (props.clearAfterSelect) {
           doUpdateValue(null)
-        } else {
-          doUpdateValue(option.label)
+        } else if (option.label !== undefined) {
+          doUpdateValue(
+            props.append
+              ? `${mergedValueRef.value}${option.label}`
+              : option.label
+          )
         }
-        doSelect(option.value)
         canBeActivatedRef.value = false
         if (props.blurAfterSelect) {
           blur()
@@ -252,7 +272,9 @@ export default defineComponent({
       select(option.rawNode as AutoCompleteOption)
     }
     function handleClickOutsideMenu (e: MouseEvent): void {
-      if (!triggerElRef.value?.contains(e.target as Node)) {
+      if (
+        !triggerElRef.value?.contains(getPreciseEventTarget(e) as Node | null)
+      ) {
         canBeActivatedRef.value = false
       }
     }
@@ -261,7 +283,32 @@ export default defineComponent({
         ;(document.activeElement as HTMLElement)?.blur()
       }
     }
+    const cssVarsRef = computed(() => {
+      const {
+        common: { cubicBezierEaseInOut },
+        self: { menuBoxShadow }
+      } = themeRef.value
+      return {
+        '--n-menu-box-shadow': menuBoxShadow,
+        '--n-bezier': cubicBezierEaseInOut
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('auto-complete', undefined, cssVarsRef, props)
+      : undefined
+    const inputInstRef = ref<InputInst | null>(null)
+    const exposedMethods: AutoCompleteInst = {
+      focus: () => {
+        inputInstRef.value?.focus()
+      },
+      blur: () => {
+        inputInstRef.value?.blur()
+      }
+    }
     return {
+      focus: exposedMethods.focus,
+      blur: exposedMethods.blur,
+      inputInstRef,
       uncontrolledValue: uncontrolledValueRef,
       mergedValue: mergedValueRef,
       isMounted: useIsMounted(),
@@ -283,16 +330,9 @@ export default defineComponent({
       handleCompositionEnd,
       handleKeyDown,
       mergedTheme: themeRef,
-      cssVars: computed(() => {
-        const {
-          common: { cubicBezierEaseInOut },
-          self: { menuBoxShadow }
-        } = themeRef.value
-        return {
-          '--n-menu-box-shadow': menuBoxShadow,
-          '--n-bezier': cubicBezierEaseInOut
-        }
-      }),
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender,
       mergedBordered: mergedBorderedRef,
       namespace: namespaceRef,
       mergedClsPrefix: mergedClsPrefixRef
@@ -326,6 +366,7 @@ export default defineComponent({
                     const { mergedTheme } = this
                     return (
                       <NInput
+                        ref="inputInstRef"
                         status={this.mergedStatus}
                         theme={mergedTheme.peers.Input}
                         themeOverrides={mergedTheme.peerOverrides.Input}
@@ -343,8 +384,8 @@ export default defineComponent({
                         onBlur={this.handleBlur}
                       >
                         {{
-                          suffix: this.$slots.suffix,
-                          prefix: this.$slots.prefix
+                          suffix: () => this.$slots.suffix?.(),
+                          prefix: () => this.$slots.prefix?.()
                         }}
                       </NInput>
                     )
@@ -367,32 +408,49 @@ export default defineComponent({
                       appear={this.isMounted}
                     >
                       {{
-                        default: () =>
-                          this.active
-                            ? withDirectives(
-                                <NInternalSelectMenu
-                                  clsPrefix={mergedClsPrefix}
-                                  ref="menuInstRef"
-                                  theme={
-                                    this.mergedTheme.peers.InternalSelectMenu
-                                  }
-                                  themeOverrides={
-                                    this.mergedTheme.peerOverrides
-                                      .InternalSelectMenu
-                                  }
-                                  auto-pending
-                                  class={`${mergedClsPrefix}-auto-complete-menu`}
-                                  style={this.cssVars as CSSProperties}
-                                  treeMate={this.treeMate}
-                                  multiple={false}
-                                  renderLabel={this.renderLabel}
-                                  renderOption={this.renderOption}
-                                  size="medium"
-                                  onToggle={this.handleToggle}
-                                />,
-                                [[clickoutside, this.handleClickOutsideMenu]]
-                            )
-                            : null
+                        default: () => {
+                          this.onRender?.()
+                          if (!this.active) return null
+                          const { menuProps } = this
+                          return withDirectives(
+                            <NInternalSelectMenu
+                              {...(menuProps as any)}
+                              clsPrefix={mergedClsPrefix}
+                              ref="menuInstRef"
+                              theme={this.mergedTheme.peers.InternalSelectMenu}
+                              themeOverrides={
+                                this.mergedTheme.peerOverrides
+                                  .InternalSelectMenu
+                              }
+                              auto-pending
+                              class={[
+                                `${mergedClsPrefix}-auto-complete-menu`,
+                                this.themeClass,
+                                menuProps?.class
+                              ]}
+                              style={[
+                                menuProps?.style,
+                                this.cssVars as CSSProperties
+                              ]}
+                              treeMate={this.treeMate}
+                              multiple={false}
+                              renderLabel={this.renderLabel}
+                              renderOption={this.renderOption}
+                              size="medium"
+                              onToggle={this.handleToggle}
+                            >
+                              {{ empty: () => this.$slots.empty?.() }}
+                            </NInternalSelectMenu>,
+                            [
+                              [
+                                clickoutside,
+                                this.handleClickOutsideMenu,
+                                undefined as unknown as string,
+                                { capture: true }
+                              ]
+                            ]
+                          )
+                        }
                       }}
                     </Transition>
                   )

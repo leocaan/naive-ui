@@ -14,6 +14,10 @@ export {
   resolveSlot,
   resolveWrappedSlot,
   resolveSlotWithProps,
+  resolveWrappedSlotWithProps,
   isSlotEmpty
 } from './resolve-slot'
 export type { MaybeArray } from './call'
+export { mergeEventHandlers } from './merge-handlers'
+export { isNodeVShowFalse } from './is-node-v-show-false'
+export { Wrapper } from './wrapper'

@@ -5,7 +5,8 @@ const nbNO: NLocale = {
   global: {
     undo: 'Angre',
     redo: 'Utfør likevel',
-    confirm: 'Bekreft'
+    confirm: 'Bekreft',
+    clear: 'Tøm'
   },
   Popconfirm: {
     positiveText: 'Bekreft',
@@ -30,6 +31,7 @@ const nbNO: NLocale = {
     dateFormat: 'dd.MM.yyyy',
     dateTimeFormat: 'dd.MM.yyyy HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Tøm',
     now: 'Nå',
     confirm: 'Bekreft',
@@ -41,10 +43,14 @@ const nbNO: NLocale = {
     // FIXME: translation needed
     yearPlaceholder: 'Select Year',
     quarterPlaceholder: 'Select Quarter',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Startdato',
     endDatePlaceholder: 'Sluttdato',
     startDatetimePlaceholder: 'Startdato og -tid',
     endDatetimePlaceholder: 'Sluttdato og -tid',
+    // FIXME: translation needed
+    startMonthPlaceholder: 'Start Month',
+    endMonthPlaceholder: 'End Month',
     monthBeforeYear: true,
     firstDayOfWeek: 0 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'I dag'
@@ -55,9 +61,17 @@ const nbNO: NLocale = {
     confirm: 'Bekreft',
     clear: 'Tøm'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Kilde',
     targetTitle: 'Mål'
+  },
+  // TODO: translation
+  Transfer: {
+    selectAll: 'Select all',
+    unselectAll: 'Unselect all',
+    clearAll: 'Clear',
+    total: (num: number): string => `Total ${num} items`,
+    selected: (num: number): string => `${num} items selected`
   },
   Empty: {
     description: 'Ingen data'
@@ -69,7 +83,8 @@ const nbNO: NLocale = {
     placeholder: 'Velg tid',
     positiveText: 'OK',
     negativeText: 'Avbryt',
-    now: 'Nå'
+    now: 'Nå',
+    clear: 'Tøm'
   },
   Pagination: {
     goto: 'Gå til',
@@ -100,7 +115,6 @@ const nbNO: NLocale = {
     export: 'Eksporter',
     restore: 'Nullstill til standardvalg'
   },
-  // TODO: translation
   Image: {
     tipPrevious: 'Previous picture (←)',
     tipNext: 'Next picture (→)',
@@ -108,7 +122,10 @@ const nbNO: NLocale = {
     tipClockwise: 'Clockwise',
     tipZoomOut: 'Zoom out',
     tipZoomIn: 'Zoom in',
-    tipClose: 'Close (Esc)'
+    tipDownload: 'Download',
+    tipClose: 'Close (Esc)',
+    // TODO: translation
+    tipOriginalSize: 'Zoom to original size'
   }
 }
 

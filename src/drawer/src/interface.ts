@@ -1,4 +1,4 @@
-import { Ref } from 'vue'
+import type { Ref } from 'vue'
 import type { MergedTheme } from '../../_mixins'
 import { createInjectionKey } from '../../_utils/vue/create-injection-key'
 import type { DrawerTheme } from '../styles'
@@ -12,6 +12,8 @@ export interface DrawerInjection {
   mergedThemeRef: Ref<MergedTheme<DrawerTheme>>
   mergedClsPrefixRef: Ref<string>
   doUpdateShow: (show: boolean) => void
+  doUpdateWidth: (value: number) => void
+  doUpdateHeight: (value: number) => void
 }
 export const drawerInjectionKey =
   createInjectionKey<DrawerInjection>('n-drawer')

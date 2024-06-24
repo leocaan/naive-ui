@@ -5,19 +5,36 @@
 </markdown>
 
 <template>
-  <n-tree
-    block-line
-    :data="data"
-    default-expand-all
-    virtual-scroll
-    style="height: 320px"
-  />
+  <n-space vertical>
+    <n-space>
+      <n-button @click="handleScrollToKey">
+        滚动
+      </n-button>
+      <n-button @click="handleScrollToPosition">
+        滚动到指定位置
+      </n-button>
+      <n-button @click="handleScrollToIndex">
+        滚动到指定 Index
+      </n-button>
+      <n-button @click="handleScrollToDistance">
+        滚动到指定距离
+      </n-button>
+    </n-space>
+    <n-tree
+      ref="treeInstRef"
+      block-line
+      :data="data"
+      default-expand-all
+      virtual-scroll
+      style="height: 320px"
+    />
+  </n-space>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, ref } from 'vue'
 import { repeat } from 'seemly'
-import { TreeOption } from 'naive-ui'
+import { TreeOption, TreeInst } from 'naive-ui'
 
 function createData (level = 4, baseKey = ''): TreeOption[] | undefined {
   if (!level) return undefined
@@ -41,8 +58,22 @@ function createLabel (level: number): string {
 
 export default defineComponent({
   setup () {
+    const treeInstRef = ref<TreeInst | null>(null)
     return {
-      data: createData()
+      treeInstRef,
+      data: createData(),
+      handleScrollToKey: () => {
+        treeInstRef.value?.scrollTo({ key: '45362710' })
+      },
+      handleScrollToPosition: () => {
+        treeInstRef.value?.scrollTo({ position: 'bottom' })
+      },
+      handleScrollToIndex: () => {
+        treeInstRef.value?.scrollTo({ index: 100 })
+      },
+      handleScrollToDistance: () => {
+        treeInstRef.value?.scrollTo({ top: 400 })
+      }
     }
   }
 })

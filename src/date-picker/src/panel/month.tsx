@@ -1,11 +1,19 @@
-import { h, defineComponent, VNode, PropType, onMounted, nextTick } from 'vue'
+import { h, defineComponent, type VNode, type PropType, onMounted } from 'vue'
 import { VirtualList } from 'vueuc'
+import { useLocale } from '../../../_mixins'
 import { NButton, NxButton } from '../../../button'
 import { NBaseFocusDetector, NScrollbar } from '../../../_internal'
-import type { MonthItem, YearItem, QuarterItem } from '../utils'
+import {
+  type MonthItem,
+  type YearItem,
+  type QuarterItem,
+  getMonthString,
+  getQuarterString,
+  getYearString
+} from '../utils'
 import { MONTH_ITEM_HEIGHT } from '../config'
 import { useCalendar, useCalendarProps } from './use-calendar'
-import { OnPanelUpdateValueImpl } from '../interface'
+import type { OnPanelUpdateValueImpl } from '../interface'
 
 /**
  * Month Panel
@@ -26,18 +34,32 @@ export default defineComponent({
   },
   setup (props) {
     const useCalendarRef = useCalendar(props, props.type)
+    const { dateLocaleRef } = useLocale('DatePicker')
     const getRenderContent = (
       item: YearItem | MonthItem | QuarterItem
     ): number | string => {
       switch (item.type) {
         case 'year':
-          return item.dateObject.year
+          return getYearString(
+            item.dateObject.year,
+            item.yearFormat,
+            dateLocaleRef.value.locale
+          )
         case 'month':
-          return item.dateObject.month + 1
+          return getMonthString(
+            item.dateObject.month,
+            item.monthFormat,
+            dateLocaleRef.value.locale
+          )
         case 'quarter':
-          return `Q ${item.dateObject.quarter}`
+          return getQuarterString(
+            item.dateObject.quarter,
+            item.quarterFormat,
+            dateLocaleRef.value.locale
+          )
       }
     }
+    const { useAsQuickJump } = props
     const renderItem = (
       item: YearItem | MonthItem | QuarterItem,
       i: number,
@@ -51,20 +73,39 @@ export default defineComponent({
           key={i}
           class={[
             `${mergedClsPrefix}-date-panel-month-calendar__picker-col-item`,
-            {
-              [`${mergedClsPrefix}-date-panel-month-calendar__picker-col-item--current`]:
-                item.isCurrent,
-              [`${mergedClsPrefix}-date-panel-month-calendar__picker-col-item--selected`]:
-                item.selected,
-              [`${mergedClsPrefix}-date-panel-month-calendar__picker-col-item--disabled`]:
-                mergedIsDateDisabled(item.ts)
-            }
+            item.isCurrent &&
+              `${mergedClsPrefix}-date-panel-month-calendar__picker-col-item--current`,
+            item.selected &&
+              `${mergedClsPrefix}-date-panel-month-calendar__picker-col-item--selected`,
+            !useAsQuickJump &&
+              mergedIsDateDisabled(
+                item.ts,
+                item.type === 'year'
+                  ? {
+                      type: 'year',
+                      year: item.dateObject.year
+                    }
+                  : item.type === 'month'
+                    ? {
+                        type: 'month',
+                        year: item.dateObject.year,
+                        month: item.dateObject.month
+                      }
+                    : item.type === 'quarter'
+                      ? {
+                          type: 'month',
+                          year: item.dateObject.year,
+                          month: item.dateObject.quarter
+                        }
+                      : (null as never)
+              ) &&
+              `${mergedClsPrefix}-date-panel-month-calendar__picker-col-item--disabled`
           ]}
           onClick={() => {
-            props.useAsQuickJump
-              ? handleQuickMonthClick(item, (value) =>
-                (props.onUpdateValue as OnPanelUpdateValueImpl)(value, false)
-              )
+            useAsQuickJump
+              ? handleQuickMonthClick(item, (value) => {
+                ;(props.onUpdateValue as OnPanelUpdateValueImpl)(value, false)
+              })
               : handleDateClick(item)
           }}
         >
@@ -73,7 +114,7 @@ export default defineComponent({
       )
     }
     onMounted(() => {
-      void nextTick(useCalendarRef.scrollPickerColumns)
+      useCalendarRef.justifyColumnsScrollState()
     })
     return { ...useCalendarRef, renderItem }
   },
@@ -84,22 +125,26 @@ export default defineComponent({
       shortcuts,
       actions,
       renderItem,
-      type
+      type,
+      onRender
     } = this
+    onRender?.()
     return (
       <div
         ref="selfRef"
         tabindex={0}
         class={[
           `${mergedClsPrefix}-date-panel`,
-          `${mergedClsPrefix}-date-panel--month`
+          `${mergedClsPrefix}-date-panel--month`,
+          !this.panel && `${mergedClsPrefix}-date-panel--shadow`,
+          this.themeClass
         ]}
         onFocus={this.handlePanelFocus}
         onKeydown={this.handlePanelKeyDown}
       >
         <div class={`${mergedClsPrefix}-date-panel-month-calendar`}>
           <NScrollbar
-            ref="scrollbarInstRef"
+            ref="yearScrollbarRef"
             class={`${mergedClsPrefix}-date-panel-month-calendar__picker-col`}
             theme={mergedTheme.peers.Scrollbar}
             themeOverrides={mergedTheme.peerOverrides.Scrollbar}
@@ -111,7 +156,7 @@ export default defineComponent({
             {{
               default: () => (
                 <VirtualList
-                  ref="yearScrollRef"
+                  ref="yearVlRef"
                   items={this.yearArray}
                   itemSize={MONTH_ITEM_HEIGHT}
                   showScrollbar={false}
@@ -139,7 +184,7 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month-calendar__picker-col`}
             >
               <NScrollbar
-                ref="monthScrollRef"
+                ref="monthScrollbarRef"
                 theme={mergedTheme.peers.Scrollbar}
                 themeOverrides={mergedTheme.peerOverrides.Scrollbar}
               >

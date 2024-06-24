@@ -5,7 +5,8 @@ const ruRu: NLocale = {
   global: {
     undo: 'Отменить',
     redo: 'Вернуть',
-    confirm: 'Подтвердить'
+    confirm: 'Подтвердить',
+    clear: 'Очистить'
   },
   Popconfirm: {
     positiveText: 'Подтвердить',
@@ -30,6 +31,7 @@ const ruRu: NLocale = {
     dateFormat: 'yyyy-MM-dd',
     dateTimeFormat: 'yyyy-MM-dd HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Очистить',
     now: 'Сейчас',
     confirm: 'Подтвердить',
@@ -38,13 +40,15 @@ const ruRu: NLocale = {
     datePlaceholder: 'Выбрать дату',
     datetimePlaceholder: 'Выбрать дату и время',
     monthPlaceholder: 'Выберите месяц',
-    // FIXME: translation needed
-    yearPlaceholder: 'Select Year',
-    quarterPlaceholder: 'Select Quarter',
+    yearPlaceholder: 'Выберите год',
+    quarterPlaceholder: 'Выберите квартал',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Дата начала',
     endDatePlaceholder: 'Дата окончания',
     startDatetimePlaceholder: 'Дата и время начала',
     endDatetimePlaceholder: 'Дата и время окончания',
+    startMonthPlaceholder: 'Начало месяца',
+    endMonthPlaceholder: 'Конец месяца',
     monthBeforeYear: true,
     firstDayOfWeek: 0 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'Сегодня'
@@ -55,9 +59,16 @@ const ruRu: NLocale = {
     confirm: 'Подтвердить',
     clear: 'Очистить'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Источник',
     targetTitle: 'Назначение'
+  },
+  Transfer: {
+    selectAll: 'Выбрать все',
+    unselectAll: 'Снять все',
+    clearAll: 'Очистить',
+    total: (num: number): string => `Всего ${num} элементов`,
+    selected: (num: number): string => `${num} выбрано элементов`
   },
   Empty: {
     description: 'Нет данных'
@@ -69,7 +80,8 @@ const ruRu: NLocale = {
     placeholder: 'Выбрать время',
     positiveText: 'OK',
     negativeText: 'Отменить',
-    now: 'Сейчас'
+    now: 'Сейчас',
+    clear: 'Очистить'
   },
   Pagination: {
     goto: 'Перейти',
@@ -100,15 +112,16 @@ const ruRu: NLocale = {
     export: 'Экспорт',
     restore: 'Сбросить'
   },
-  // TODO: translation
   Image: {
-    tipPrevious: 'Previous picture (←)',
-    tipNext: 'Next picture (→)',
-    tipCounterclockwise: 'Counterclockwise',
-    tipClockwise: 'Clockwise',
-    tipZoomOut: 'Zoom out',
-    tipZoomIn: 'Zoom in',
-    tipClose: 'Close (Esc)'
+    tipPrevious: 'Предыдущее изображение (←)',
+    tipNext: 'Следующее изображение (→)',
+    tipCounterclockwise: 'Против часовой стрелки',
+    tipClockwise: 'По часовой стрелке',
+    tipZoomOut: 'Отдалить',
+    tipZoomIn: 'Приблизить',
+    tipDownload: 'Скачать',
+    tipClose: 'Закрыть (Esc)',
+    tipOriginalSize: 'Вернуть исходный размер'
   }
 }
 

@@ -1,6 +1,8 @@
-export { default } from './preset'
+export { default, install } from './preset'
 
 export { useOsTheme } from 'vooks'
+
+export { zindexable } from 'vdirs'
 
 export { default as create } from './create'
 

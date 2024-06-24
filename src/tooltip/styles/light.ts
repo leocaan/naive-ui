@@ -3,14 +3,15 @@ import type { ThemeCommonVars } from '../../_styles/common'
 import { popoverLight } from '../../popover/styles'
 import commonVars from './_common'
 import { createTheme } from '../../_mixins/use-theme'
+import { composite } from 'seemly'
 
 const self = (vars: ThemeCommonVars) => {
   const { borderRadius, boxShadow2, baseColor } = vars
   return {
     ...commonVars,
-    borderRadius: borderRadius,
+    borderRadius,
     boxShadow: boxShadow2,
-    color: 'rgba(0, 0, 0, .85)',
+    color: composite(baseColor, 'rgba(0, 0, 0, .85)'),
     textColor: baseColor
   }
 }

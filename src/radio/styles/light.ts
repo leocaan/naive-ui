@@ -2,7 +2,7 @@ import { changeColor } from 'seemly'
 import commonVariables from './_common'
 import { commonLight } from '../../_styles/common'
 import type { ThemeCommonVars } from '../../_styles/common'
-import { Theme } from '../../_mixins/use-theme'
+import { type Theme } from '../../_mixins/use-theme'
 
 const self = (vars: ThemeCommonVars) => {
   const {
@@ -19,10 +19,12 @@ const self = (vars: ThemeCommonVars) => {
     fontSizeLarge,
     heightSmall,
     heightMedium,
-    heightLarge
+    heightLarge,
+    lineHeight
   } = vars
   return {
     ...commonVariables,
+    labelLineHeight: lineHeight,
     buttonHeightSmall: heightSmall,
     buttonHeightMedium: heightMedium,
     buttonHeightLarge: heightLarge,
@@ -39,8 +41,9 @@ const self = (vars: ThemeCommonVars) => {
     boxShadowDisabled: `inset 0 0 0 1px ${borderColor}`,
     color: baseColor,
     colorDisabled: inputColorDisabled,
+    colorActive: '#0000',
     textColor: textColor2,
-    textColorDisabled: textColorDisabled,
+    textColorDisabled,
     dotColorActive: primaryColor,
     dotColorDisabled: borderColor,
     buttonBorderColor: borderColor,
@@ -51,7 +54,7 @@ const self = (vars: ThemeCommonVars) => {
     buttonTextColor: textColor2,
     buttonTextColorActive: primaryColor,
     buttonTextColorHover: primaryColor,
-    opacityDisabled: opacityDisabled,
+    opacityDisabled,
     buttonBoxShadowFocus: `inset 0 0 0 1px ${primaryColor}, 0 0 0 2px ${changeColor(
       primaryColor,
       { alpha: 0.3 }

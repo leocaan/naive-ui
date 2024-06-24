@@ -1,11 +1,11 @@
-import { h, defineComponent, PropType, inject, Ref } from 'vue'
-import { TreeNode } from 'treemate'
+import { h, defineComponent, type PropType, inject, type Ref } from 'vue'
+import type { TreeNode } from 'treemate'
 import type { SelectGroupOption } from '../../../select/src/interface'
 import { render } from '../../../_utils'
 import {
   internalSelectionMenuInjectionKey,
-  RenderLabelImpl,
-  RenderOptionImpl
+  type RenderLabelImpl,
+  type RenderOptionImpl
 } from './interface'
 
 export default defineComponent({
@@ -23,10 +23,14 @@ export default defineComponent({
   setup () {
     const {
       renderLabelRef,
-      renderOptionRef
+      renderOptionRef,
+      labelFieldRef,
+      nodePropsRef
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     } = inject(internalSelectionMenuInjectionKey)!
     return {
+      labelField: labelFieldRef,
+      nodeProps: nodePropsRef,
       renderLabel: renderLabelRef as Ref<RenderLabelImpl | undefined>,
       renderOption: renderOptionRef as Ref<RenderOptionImpl | undefined>
     }
@@ -36,13 +40,20 @@ export default defineComponent({
       clsPrefix,
       renderLabel,
       renderOption,
+      nodeProps,
       tmNode: { rawNode }
     } = this
+    const attrs = nodeProps?.(rawNode)
     const children = renderLabel
       ? renderLabel(rawNode, false)
-      : render(rawNode.label, rawNode, false)
+      : render(rawNode[this.labelField], rawNode, false)
     const node = (
-      <div class={`${clsPrefix}-base-select-group-header`}>{children}</div>
+      <div
+        {...attrs}
+        class={[`${clsPrefix}-base-select-group-header`, attrs?.class]}
+      >
+        {children}
+      </div>
     )
     return rawNode.render
       ? rawNode.render({ node, option: rawNode })

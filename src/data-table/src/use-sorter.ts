@@ -1,4 +1,5 @@
-import { computed, ref, ComputedRef } from 'vue'
+import { computed, ref, type ComputedRef } from 'vue'
+import { call } from '../../_utils'
 import type {
   ColumnKey,
   InternalRowData,
@@ -9,11 +10,10 @@ import type {
   TableExpandColumn,
   TableSelectionColumn,
   CompareFn,
-  OnUpdateSorterImpl
+  OnUpdateSorterImpl,
+  DataTableSetupProps
 } from './interface'
 import { getFlagOfOrder } from './utils'
-import { call } from '../../_utils'
-import type { DataTableSetupProps } from './DataTable'
 
 function getMultiplePriority (
   sorter: TableBaseColumn['sorter']
@@ -57,7 +57,12 @@ function getDefaultSorterFn (
     const value1 = row1[columnKey]
     const value2 = row2[columnKey]
 
-    if (typeof value1 === 'number' && typeof value2 === 'number') {
+    if (value1 === null || value1 === undefined) {
+      if (value2 === null || value2 === undefined) return 0
+      return -1
+    } else if (value2 === null || value2 === undefined) {
+      return 1
+    } else if (typeof value1 === 'number' && typeof value2 === 'number') {
       return value1 - value2
     } else if (typeof value1 === 'string' && typeof value2 === 'string') {
       return value1.localeCompare(value2)
@@ -220,12 +225,12 @@ export function useSorter (
           column.type !== 'expand' &&
           column.key === columnKey
       )
-      if (!columnToSort || !columnToSort.sorter) return
+      if (!columnToSort?.sorter) return
       const sorter = columnToSort.sorter
       deriveNextSorter({
         columnKey,
         sorter,
-        order: order
+        order
       })
     }
   }

@@ -2,21 +2,27 @@ import {
   h,
   ref,
   computed,
-  createTextVNode,
   defineComponent,
-  PropType,
-  VNode,
+  type PropType,
+  type VNode,
   provide,
-  CSSProperties,
-  ComputedRef,
-  Ref,
+  type CSSProperties,
+  type ComputedRef,
+  type Ref,
   toRef,
   cloneVNode,
   watchEffect,
-  withDirectives
+  withDirectives,
+  Text
 } from 'vue'
-import { VBinder, VTarget, FollowerPlacement, BinderInst } from 'vueuc'
+import {
+  VBinder,
+  VTarget,
+  type FollowerPlacement,
+  type BinderInst
+} from 'vueuc'
 import { useMergedState, useCompitable, useIsMounted, useMemo } from 'vooks'
+import { zindexable } from 'vdirs'
 import {
   call,
   keep,
@@ -31,10 +37,13 @@ import type {
 } from '../../_utils'
 import { useTheme } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import NPopoverBody, { popoverBodyProps } from './PopoverBody'
 import type { PopoverTheme } from '../styles'
-import type { PopoverTrigger, InternalRenderBody } from './interface'
-import { zindexable } from 'vdirs'
+import NPopoverBody, { popoverBodyProps } from './PopoverBody'
+import type {
+  PopoverTrigger,
+  InternalRenderBody,
+  InternalPopoverInst
+} from './interface'
 
 const bodyPropKeys = Object.keys(popoverBodyProps) as Array<
 keyof typeof popoverBodyProps
@@ -78,8 +87,6 @@ function appendEvents (
     }
   })
 }
-
-const textVNodeType = createTextVNode('').type
 
 interface BodyInstance {
   syncPosition: () => void
@@ -130,13 +137,17 @@ export const popoverBaseProps = {
   },
   x: Number,
   y: Number,
+  arrowPointToCenter: Boolean,
   disabled: Boolean,
   getDisabled: Function as PropType<() => boolean>,
   displayDirective: {
     type: String as PropType<'if' | 'show'>,
     default: 'if'
   },
+  arrowClass: String,
   arrowStyle: [String, Object] as PropType<string | CSSProperties>,
+  arrowWrapperClass: String,
+  arrowWrapperStyle: [String, Object] as PropType<string | CSSProperties>,
   flip: {
     type: Boolean,
     default: true
@@ -154,48 +165,54 @@ export const popoverBaseProps = {
     type: Boolean,
     default: true
   },
-  onClickoutside: Function as PropType<(e: MouseEvent) => void>,
-  internalExtraClass: {
-    type: Array as PropType<string[]>,
-    default: () => []
-  },
+  zIndex: Number,
+  to: useAdjustedTo.propTo,
+  scrollable: Boolean,
+  contentClass: String,
+  contentStyle: [Object, String] as PropType<CSSProperties | string>,
+  headerClass: String,
+  headerStyle: [Object, String] as PropType<CSSProperties | string>,
+  footerClass: String,
+  footerStyle: [Object, String] as PropType<CSSProperties | string>,
   // events
+  onClickoutside: Function as PropType<(e: MouseEvent) => void>,
   'onUpdate:show': [Function, Array] as PropType<
   MaybeArray<(value: boolean) => void>
   >,
   onUpdateShow: [Function, Array] as PropType<
   MaybeArray<(value: boolean) => void>
   >,
-  zIndex: Number,
-  to: useAdjustedTo.propTo,
+  // internal
+  internalDeactivateImmediately: Boolean,
   internalSyncTargetWithParent: Boolean,
   internalInheritedEventHandlers: {
     type: Array as PropType<TriggerEventHandlers[]>,
     default: () => []
   },
   internalTrapFocus: Boolean,
-  /** @deprecated */
+  internalExtraClass: {
+    type: Array as PropType<string[]>,
+    default: () => []
+  },
+  // deprecated
   onShow: [Function, Array] as PropType<
   MaybeArray<(value: boolean) => void> | undefined
   >,
-  /** @deprecated */
   onHide: [Function, Array] as PropType<
   MaybeArray<(value: boolean) => void> | undefined
   >,
-  /** @deprecated */
   arrow: {
     type: Boolean as PropType<boolean | undefined>,
     default: undefined
   },
-  /** @deprecated */
   minWidth: Number,
-  /** @deprecated */
   maxWidth: Number
 }
 
-const popoverProps = {
+export const popoverProps = {
   ...(useTheme.props as ThemeProps<PopoverTheme>),
   ...popoverBaseProps,
+  internalOnAfterLeave: Function as PropType<() => void>,
   internalRenderBody: Function as PropType<InternalRenderBody>
 }
 
@@ -393,7 +410,7 @@ export default defineComponent({
     }
     function handleKeydown (e: KeyboardEvent): void {
       if (!props.internalTrapFocus) return
-      if (e.code === 'Escape') {
+      if (e.key === 'Escape') {
         clearShowTimer()
         clearHideTimer()
         doUpdateShow(false)
@@ -403,6 +420,7 @@ export default defineComponent({
       uncontrolledShowRef.value = value
     }
     function getTriggerElement (): HTMLElement {
+      // eslint-disable-next-line @typescript-eslint/non-nullable-type-assertion-style
       return binderInstRef.value?.targetRef as HTMLElement
     }
     function setBodyInstance (value: BodyInstance | null): void {
@@ -416,13 +434,18 @@ export default defineComponent({
       handleClickOutside,
       handleMouseMoveOutside,
       setBodyInstance,
-      positionManuallyRef: positionManuallyRef,
-      isMountedRef: isMountedRef,
+      positionManuallyRef,
+      isMountedRef,
       zIndexRef: toRef(props, 'zIndex'),
       extraClassRef: toRef(props, 'internalExtraClass'),
       internalRenderBodyRef: toRef(props, 'internalRenderBody')
     })
-    return {
+    watchEffect(() => {
+      if (mergedShowWithoutDisabledRef.value && getMergedDisabled()) {
+        doUpdateShow(false)
+      }
+    })
+    const returned = {
       binderInstRef,
       positionManually: positionManuallyRef,
       mergedShowConsideringDisabledProp: mergedShowConsideringDisabledPropRef,
@@ -438,6 +461,7 @@ export default defineComponent({
       handleBlur,
       syncPosition
     }
+    return returned satisfies InternalPopoverInst
   },
   render () {
     const { positionManually, $slots: slots } = this
@@ -452,9 +476,7 @@ export default defineComponent({
       if (triggerVNode) {
         triggerVNode = cloneVNode(triggerVNode)
         triggerVNode =
-          triggerVNode.type === textVNodeType
-            ? h('span', [triggerVNode])
-            : triggerVNode
+          triggerVNode.type === Text ? h('span', [triggerVNode]) : triggerVNode
         const handlers = {
           onClick: this.handleClick,
           onMouseenter: this.handleMouseEnter,
@@ -567,7 +589,8 @@ export default defineComponent({
                 }),
                 {
                   default: () => this.$slots.default?.(),
-                  header: () => this.$slots.header?.()
+                  header: () => this.$slots.header?.(),
+                  footer: () => this.$slots.footer?.()
                 }
               )
             ]

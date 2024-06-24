@@ -5,7 +5,8 @@ const ukUA: NLocale = {
   global: {
     undo: 'Відмінити',
     redo: 'Повторити',
-    confirm: 'Підтвердити'
+    confirm: 'Підтвердити',
+    clear: 'Стерти'
   },
   Popconfirm: {
     positiveText: 'Підтвердити',
@@ -30,6 +31,7 @@ const ukUA: NLocale = {
     dateFormat: 'yyyy-MM-dd',
     dateTimeFormat: 'yyyy-MM-dd HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Стерти',
     now: 'Зараз',
     confirm: 'Підтвердити',
@@ -37,27 +39,37 @@ const ukUA: NLocale = {
     selectDate: 'Обрати дату',
     datePlaceholder: 'Обрати дату',
     datetimePlaceholder: 'Обрати дату і час',
-    monthPlaceholder: 'Виберіть місяць',
-    // FIXME: translation needed
-    yearPlaceholder: 'Select Year',
-    quarterPlaceholder: 'Select Quarter',
+    monthPlaceholder: 'Оберіть місяць',
+    yearPlaceholder: 'Оберіть рік',
+    quarterPlaceholder: 'Оберіть квартал',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Дата початку',
     endDatePlaceholder: 'Дата завершення',
     startDatetimePlaceholder: 'Дата і час початку',
     endDatetimePlaceholder: 'Дата і час завершення',
+    startMonthPlaceholder: 'Перший місяць',
+    endMonthPlaceholder: 'Останній місяць',
     monthBeforeYear: true,
     firstDayOfWeek: 0 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'Сьогодні'
   },
   DataTable: {
     checkTableAll: 'Обрати все в таблиці',
-    uncheckTableAll: 'Скасувати вибріу усього в таблиці',
+    uncheckTableAll: 'Скасувати вибір усього в таблиці',
     confirm: 'Підтвердити',
     clear: 'Стерти'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Джерело',
     targetTitle: 'Ціль'
+  },
+  // TODO: translation
+  Transfer: {
+    selectAll: 'Select all',
+    unselectAll: 'Unselect all',
+    clearAll: 'Clear',
+    total: (num: number): string => `Total ${num} items`,
+    selected: (num: number): string => `${num} items selected`
   },
   Empty: {
     description: 'Немає даних'
@@ -69,7 +81,8 @@ const ukUA: NLocale = {
     placeholder: 'Обрати час',
     positiveText: 'OK',
     negativeText: 'Скасувати',
-    now: 'Зараз'
+    now: 'Зараз',
+    clear: 'Стерти'
   },
   Pagination: {
     goto: 'Перейти',
@@ -100,15 +113,16 @@ const ukUA: NLocale = {
     export: 'Експорт',
     restore: 'Скинути'
   },
-  // TODO: translation
   Image: {
-    tipPrevious: 'Previous picture (←)',
-    tipNext: 'Next picture (→)',
-    tipCounterclockwise: 'Counterclockwise',
-    tipClockwise: 'Clockwise',
-    tipZoomOut: 'Zoom out',
-    tipZoomIn: 'Zoom in',
-    tipClose: 'Close (Esc)'
+    tipPrevious: 'Попереднє зображення (←)',
+    tipNext: 'Наступне зображення (→)',
+    tipCounterclockwise: 'Проти годинникової стрілки',
+    tipClockwise: 'За годинниковою стрілкою',
+    tipZoomOut: 'Віддалити',
+    tipZoomIn: 'Наблизити',
+    tipDownload: 'звантажити',
+    tipClose: 'Закрити (Esc)',
+    tipOriginalSize: 'Масштабувати до оригінального розміру'
   }
 }
 

@@ -5,7 +5,7 @@ As simple as it looks.
 ## Demos
 
 ```demo
-basic
+basic.vue
 ```
 
 ## API
@@ -16,7 +16,7 @@ basic
 | --- | --- | --- | --- | --- |
 | label | `string` | `undefined` | Label of the statistics. |  |
 | tabular-nums | `boolean` | `false` | Whether to make numbers with same width. | 2.23.2 |
-| value | `string` | `undefined` | Statistics value. |  |
+| value | `string \| number` | `undefined` | Statistics value. |  |
 
 ### Statistic Slots
 

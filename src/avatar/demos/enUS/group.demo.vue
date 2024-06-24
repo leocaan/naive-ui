@@ -5,7 +5,6 @@ Crowded people.
 </markdown>
 
 <template>
-  <n-avatar-group :options="options" :size="40" :max="3" />
   <n-avatar-group :options="options" :size="40" :max="3">
     <template #avatar="{ option: { name, src } }">
       <n-tooltip>
@@ -15,16 +14,8 @@ Crowded people.
         {{ name }}
       </n-tooltip>
     </template>
-    <template #rest="{ options: dropdownOptions, rest }">
-      <n-dropdown
-        :options="
-          dropdownOptions.map((option: { name: string, src: string }) => ({
-            key: option.name,
-            label: option.name
-          }))
-        "
-        placement="top"
-      >
+    <template #rest="{ options: restOptions, rest }">
+      <n-dropdown :options="createDropdownOptions(restOptions)" placement="top">
         <n-avatar>+{{ rest }}</n-avatar>
       </n-dropdown>
     </template>
@@ -58,7 +49,12 @@ export default defineComponent({
           name: 'Taylor Swift',
           src: 'https://gw.alipayobjects.com/zos/antfincdn/aPkFc8Sj7n/method-draw-image.svg'
         }
-      ]
+      ],
+      createDropdownOptions: (options: Array<{ name: string; src: string }>) =>
+        options.map((option) => ({
+          key: option.name,
+          label: option.name
+        }))
     }
   }
 })

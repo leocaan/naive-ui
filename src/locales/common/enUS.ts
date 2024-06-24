@@ -3,7 +3,8 @@ const enUS = {
   global: {
     undo: 'Undo',
     redo: 'Redo',
-    confirm: 'Confirm'
+    confirm: 'Confirm',
+    clear: 'Clear'
   },
   Popconfirm: {
     positiveText: 'Confirm',
@@ -28,6 +29,7 @@ const enUS = {
     dateFormat: 'yyyy-MM-dd',
     dateTimeFormat: 'yyyy-MM-dd HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Clear',
     now: 'Now',
     confirm: 'Confirm',
@@ -38,10 +40,13 @@ const enUS = {
     monthPlaceholder: 'Select Month',
     yearPlaceholder: 'Select Year',
     quarterPlaceholder: 'Select Quarter',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Start Date',
     endDatePlaceholder: 'End Date',
     startDatetimePlaceholder: 'Start Date and Time',
     endDatetimePlaceholder: 'End Date and Time',
+    startMonthPlaceholder: 'Start Month',
+    endMonthPlaceholder: 'End Month',
     monthBeforeYear: true,
     firstDayOfWeek: 6 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'Today'
@@ -52,9 +57,16 @@ const enUS = {
     confirm: 'Confirm',
     clear: 'Clear'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Source',
     targetTitle: 'Target'
+  },
+  Transfer: {
+    selectAll: 'Select all',
+    unselectAll: 'Unselect all',
+    clearAll: 'Clear',
+    total: (num: number): string => `Total ${num} items`,
+    selected: (num: number): string => `${num} items selected`
   },
   Empty: {
     description: 'No Data'
@@ -66,7 +78,8 @@ const enUS = {
     placeholder: 'Select Time',
     positiveText: 'OK',
     negativeText: 'Cancel',
-    now: 'Now'
+    now: 'Now',
+    clear: 'Clear'
   },
   Pagination: {
     goto: 'Goto',
@@ -97,7 +110,6 @@ const enUS = {
     export: 'Export',
     restore: 'Reset to Default'
   },
-  // TODO: translation
   Image: {
     tipPrevious: 'Previous picture (←)',
     tipNext: 'Next picture (→)',
@@ -105,7 +117,10 @@ const enUS = {
     tipClockwise: 'Clockwise',
     tipZoomOut: 'Zoom out',
     tipZoomIn: 'Zoom in',
-    tipClose: 'Close (Esc)'
+    tipDownload: 'Download',
+    tipClose: 'Close (Esc)',
+    // TODO: translation
+    tipOriginalSize: 'Zoom to original size'
   }
 }
 

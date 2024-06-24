@@ -5,7 +5,8 @@ const idID: NLocale = {
   global: {
     undo: 'Membatalkan',
     redo: 'Mem-perbarui',
-    confirm: 'Setuju'
+    confirm: 'Setuju',
+    clear: 'Bersihkan'
   },
   Popconfirm: {
     positiveText: 'Setuju',
@@ -15,7 +16,7 @@ const idID: NLocale = {
     placeholder: 'Mohon Pilih',
     loading: 'Memuat',
     loadingRequiredMessage: (label: string): string =>
-      `Mohon muat semua ${label}'s turunan sebelum memeriksa.`
+      `Mohon muat semua ${label} sebelum memeriksa.`
   },
   Time: {
     dateFormat: 'dd-MM-yyyy',
@@ -30,6 +31,7 @@ const idID: NLocale = {
     dateFormat: 'dd-MM-yyyy',
     dateTimeFormat: 'dd-MM-yyyy HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Bersihkan',
     now: 'Sekarang',
     confirm: 'Setuju',
@@ -39,12 +41,16 @@ const idID: NLocale = {
     datetimePlaceholder: 'Pilih Tanggal dan Waktu',
     monthPlaceholder: 'Pilih Bulan',
     // FIXME: translation needed
-    yearPlaceholder: 'Select Year',
-    quarterPlaceholder: 'Select Quarter',
+    yearPlaceholder: 'Pilih tahun',
+    quarterPlaceholder: 'Pilih perempat tahun',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Tanggal Mulai',
     endDatePlaceholder: 'Tanggal Selesai',
     startDatetimePlaceholder: 'Tanggal dan Waktu Mulai',
     endDatetimePlaceholder: 'Tanggal dan Waktu Selesai',
+    // FIXME: translation needed
+    startMonthPlaceholder: 'Awal bulan',
+    endMonthPlaceholder: 'Akhir bulan',
     monthBeforeYear: true,
     firstDayOfWeek: 6 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'Hari ini'
@@ -55,9 +61,17 @@ const idID: NLocale = {
     confirm: 'Setuju',
     clear: 'Bersihkan'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Sumber',
     targetTitle: 'Tujuan'
+  },
+  // TODO: translation
+  Transfer: {
+    selectAll: 'Pilih semua',
+    unselectAll: 'Batalkan pilihan',
+    clearAll: 'Bersihkan',
+    total: (num: number): string => `Total ${num} item`,
+    selected: (num: number): string => `${num} item dipilih`
   },
   Empty: {
     description: 'Tidak ada data'
@@ -69,7 +83,8 @@ const idID: NLocale = {
     placeholder: 'Pilih Waktu',
     positiveText: 'OK',
     negativeText: 'Batalkan',
-    now: 'Sekarang'
+    now: 'Sekarang',
+    clear: 'Bersihkan'
   },
   Pagination: {
     goto: 'Ke',
@@ -91,7 +106,7 @@ const idID: NLocale = {
     create: 'Buat baru'
   },
   ThemeEditor: {
-    title: 'Tema editor',
+    title: 'Pengaturan Tema',
     clearAllVars: 'Bersihkan semua variabel',
     clearSearch: 'Bersihkan pencarian',
     filterCompName: 'Saring nama komponen',
@@ -100,15 +115,17 @@ const idID: NLocale = {
     export: 'Ekspor',
     restore: 'Setel ulang ke awal'
   },
-  // TODO: translation
   Image: {
-    tipPrevious: 'Previous picture (←)',
-    tipNext: 'Next picture (→)',
-    tipCounterclockwise: 'Counterclockwise',
-    tipClockwise: 'Clockwise',
+    tipPrevious: 'Gambar sebelumnya (←)',
+    tipNext: 'Gambar berikutnya (→)',
+    tipCounterclockwise: 'Berlawanan arah jarum jam',
+    tipClockwise: 'Searah jarum jam',
     tipZoomOut: 'Zoom out',
     tipZoomIn: 'Zoom in',
-    tipClose: 'Close (Esc)'
+    tipDownload: 'Download',
+    tipClose: 'Tutup (Esc)',
+    // TODO: translation
+    tipOriginalSize: 'Zoom ke ukuran asli'
   }
 }
 

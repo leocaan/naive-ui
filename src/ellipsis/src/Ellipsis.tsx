@@ -1,23 +1,32 @@
-import { defineComponent, h, ref, PropType, computed, mergeProps } from 'vue'
+import {
+  defineComponent,
+  h,
+  ref,
+  type PropType,
+  computed,
+  mergeProps,
+  onDeactivated
+} from 'vue'
 import type { PopoverProps } from '../../popover/src/Popover'
-import { TooltipInst } from '../../tooltip/src/Tooltip'
+import type { TooltipInst } from '../../tooltip/src/Tooltip'
 import { NTooltip } from '../../tooltip'
-import { useConfig, useTheme } from '../../_mixins'
+import { useMergedClsPrefix } from '../../_mixins/use-config'
+import { useTheme } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
 import type { ExtractPublicPropTypes } from '../../_utils'
 import { ellipsisLight } from '../styles'
 import type { EllipsisTheme } from '../styles'
 import style from './styles/index.cssr'
 
-function createLineClampClass (clsPrefix: string): string {
+export function createLineClampClass (clsPrefix: string): string {
   return `${clsPrefix}-ellipsis--line-clamp`
 }
 
-function createCursorClass (clsPrefix: string, cursor: string): string {
+export function createCursorClass (clsPrefix: string, cursor: string): string {
   return `${clsPrefix}-ellipsis--cursor-${cursor}`
 }
 
-const ellipsisProps = {
+export const ellipsisProps = {
   ...(useTheme.props as ThemeProps<EllipsisTheme>),
   expandTrigger: String as PropType<'click'>,
   lineClamp: [Number, String] as PropType<string | number>,
@@ -34,7 +43,7 @@ export default defineComponent({
   inheritAttrs: false,
   props: ellipsisProps,
   setup (props, { slots, attrs }) {
-    const { mergedClsPrefixRef } = useConfig(props)
+    const mergedClsPrefixRef = useMergedClsPrefix()
     const mergedTheme = useTheme(
       'Ellipsis',
       '-ellipsis',
@@ -44,6 +53,7 @@ export default defineComponent({
       mergedClsPrefixRef
     )
     const triggerRef = ref<HTMLElement | null>(null)
+    const triggerInnerRef = ref<HTMLElement | null>(null)
     const tooltipRef = ref<TooltipInst | null>(null)
     const expandedRef = ref(false)
     const ellipsisStyleRef = computed(() => {
@@ -74,7 +84,12 @@ export default defineComponent({
         if (lineClamp !== undefined) {
           tooltipDisabled = trigger.scrollHeight <= trigger.offsetHeight
         } else {
-          tooltipDisabled = trigger.scrollWidth <= trigger.offsetWidth
+          const { value: triggerInner } = triggerInnerRef
+          if (triggerInner) {
+            tooltipDisabled =
+              triggerInner.getBoundingClientRect().width <=
+              trigger.getBoundingClientRect().width
+          }
         }
         syncCursorStyle(trigger, tooltipDisabled)
       }
@@ -90,6 +105,11 @@ export default defineComponent({
             expandedRef.value = !expanded
           }
         : undefined
+    })
+    onDeactivated(() => {
+      if (props.tooltip) {
+        tooltipRef.value?.setShow(false)
+      }
     })
     const renderTrigger = (): JSX.Element => (
       <span
@@ -112,7 +132,7 @@ export default defineComponent({
           props.expandTrigger === 'click' ? getTooltipDisabled : undefined
         }
       >
-        {slots}
+        {props.lineClamp ? slots : <span ref="triggerInnerRef">{slots}</span>}
       </span>
     )
     function syncEllipsisStyle (trigger: HTMLElement): void {
@@ -160,6 +180,7 @@ export default defineComponent({
     return {
       mergedTheme,
       triggerRef,
+      triggerInnerRef,
       tooltipRef,
       handleClick: handleClickRef,
       renderTrigger,
@@ -174,7 +195,7 @@ export default defineComponent({
         <NTooltip
           ref="tooltipRef"
           placement="top"
-          {...tooltip}
+          {...(tooltip as PopoverProps)}
           getDisabled={this.getTooltipDisabled}
           theme={mergedTheme.peers.Tooltip}
           themeOverrides={mergedTheme.peerOverrides.Tooltip}

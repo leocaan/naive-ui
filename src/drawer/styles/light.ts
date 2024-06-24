@@ -12,12 +12,17 @@ export const self = (vars: ThemeCommonVars) => {
     lineHeight,
     fontWeightStrong,
     dividerColor,
-    closeColor,
     closeColorHover,
-    closeColorPressed
+    closeColorPressed,
+    closeIconColor,
+    closeIconColorHover,
+    closeIconColorPressed,
+    borderRadius,
+    primaryColorHover
   } = vars
   return {
     bodyPadding: '16px 24px',
+    borderRadius,
     headerPadding: '16px 24px',
     footerPadding: '16px 24px',
     color: modalColor,
@@ -29,10 +34,15 @@ export const self = (vars: ThemeCommonVars) => {
     lineHeight,
     headerBorderBottom: `1px solid ${dividerColor}`,
     footerBorderTop: `1px solid ${dividerColor}`,
-    closeColor,
+    closeIconColor,
+    closeIconColorHover,
+    closeIconColorPressed,
+    closeSize: '22px',
+    closeIconSize: '18px',
     closeColorHover,
     closeColorPressed,
-    closeSize: '18px'
+    closeBorderRadius: borderRadius,
+    resizableTriggerColorHover: primaryColorHover
   }
 }
 

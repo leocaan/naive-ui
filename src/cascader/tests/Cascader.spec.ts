@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-confusing-void-expression */
 import { mount } from '@vue/test-utils'
 import { NCascader } from '../index'
-import { CascaderOption } from '../src/interface'
+import type { CascaderOption } from '../src/interface'
+import { nextTick } from 'vue'
 
 function getOptions (depth = 3, iterator = 1, prefix = ''): CascaderOption[] {
   const length = 12
@@ -46,6 +48,7 @@ describe('n-cascader', () => {
     expect(wrapper.find('.n-base-selection').classes()).toContain(
       'n-base-selection--disabled'
     )
+    wrapper.unmount()
   })
 
   it('should work with `size` prop', async () => {
@@ -54,6 +57,17 @@ describe('n-cascader', () => {
       expect(
         wrapper.find('.n-base-selection').attributes('style')
       ).toMatchSnapshot()
+      wrapper.unmount()
+    })
+  })
+
+  it('should work with `status` prop', async () => {
+    ;(['success', 'warning', 'error'] as const).forEach((status) => {
+      const wrapper = mount(NCascader, { props: { status } })
+      expect(wrapper.find('.n-base-selection').classes()).toContain(
+        `n-base-selection--${status}-status`
+      )
+      wrapper.unmount()
     })
   })
 
@@ -64,6 +78,36 @@ describe('n-cascader', () => {
     expect(wrapper.find('.n-base-selection-placeholder').text()).toBe(
       'test-placeholder'
     )
+    wrapper.unmount()
+  })
+
+  it('should work with `placement` prop', async () => {
+    ;(
+      [
+        'top-start',
+        'top',
+        'top-end',
+        'right-start',
+        'right',
+        'right-end',
+        'bottom-start',
+        'bottom',
+        'bottom-end',
+        'left-start',
+        'left',
+        'left-end'
+      ] as const
+    ).forEach((placement) => {
+      const wrapper = mount(NCascader, { props: { placement } })
+      setTimeout(() => {
+        expect(
+          document
+            .querySelector('.v-binder-follower-content')
+            ?.getAttribute('v-placement')
+        ).toBe(placement)
+        wrapper.unmount()
+      })
+    })
   })
 
   it('should work with `filterable` prop', async () => {
@@ -74,6 +118,7 @@ describe('n-cascader', () => {
 
     await wrapper.setProps({ filterable: true })
     expect(wrapper.find('input').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it('should work with `default-value` prop', async () => {
@@ -81,6 +126,7 @@ describe('n-cascader', () => {
       props: { options: getOptions(), defaultValue: 'l-1-1-2' }
     })
     expect(wrapper.find('.n-base-selection-input').text()).toBe('l-1-1-2')
+    wrapper.unmount()
   })
 
   it('should work with `multiple` prop', async () => {
@@ -94,6 +140,7 @@ describe('n-cascader', () => {
 
     expect(wrapper.find('.n-base-selection-tags').exists()).toBe(true)
     expect(wrapper.find('.n-base-selection-label').exists()).not.toBe(true)
+    wrapper.unmount()
   })
 
   it('should work with `label-field` `value-field` `children-field` props', async () => {
@@ -123,6 +170,7 @@ describe('n-cascader', () => {
     expect(wrapper.find('.n-base-selection-label').text()).toBe(
       "Rubber Soul / Everybody's Got Something to Hide Except Me and My Monkey"
     )
+    wrapper.unmount()
   })
 
   it('should work with `check-strategy=child`', async () => {
@@ -143,7 +191,7 @@ describe('n-cascader', () => {
   it('should work with `on-blur` prop', async () => {
     const onBlur = jest.fn()
     const wrapper = mount(NCascader, {
-      props: { options: getOptions(), onBlur: onBlur }
+      props: { options: getOptions(), onBlur }
     })
     await wrapper.find('.n-base-selection').trigger('focusout')
     expect(onBlur).toHaveBeenCalled()
@@ -153,7 +201,7 @@ describe('n-cascader', () => {
   it('should work with `on-focus` prop', async () => {
     const onFocus = jest.fn()
     const wrapper = mount(NCascader, {
-      props: { options: getOptions(), onFocus: onFocus }
+      props: { options: getOptions(), onFocus }
     })
     await wrapper.find('.n-base-selection').trigger('focusin')
     expect(onFocus).toHaveBeenCalled()
@@ -190,11 +238,11 @@ describe('n-cascader', () => {
 
     await wrapper.find('.n-base-selection').trigger('click')
     expect(document.querySelector('.n-cascader-menu')).not.toEqual(null)
-    await document.body.click()
-    await document.body.dispatchEvent(mousedownEvent)
-    await document.body.dispatchEvent(mouseupEvent)
+    document.body.click()
+    document.body.dispatchEvent(mousedownEvent)
+    document.body.dispatchEvent(mouseupEvent)
+    await nextTick()
     expect(document.querySelector('.n-cascader-menu')).toEqual(null)
-
     wrapper.unmount()
   })
 })

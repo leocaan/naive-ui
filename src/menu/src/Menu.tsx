@@ -5,24 +5,32 @@ import {
   computed,
   defineComponent,
   provide,
-  PropType,
-  ExtractPropTypes,
-  CSSProperties,
+  type PropType,
+  type ExtractPropTypes,
   inject,
-  VNodeChild,
-  watchEffect
+  type VNodeChild,
+  watchEffect,
+  type VNode
 } from 'vue'
-import { createTreeMate, Key } from 'treemate'
+import { createTreeMate, type Key } from 'treemate'
 import { useCompitable, useMergedState } from 'vooks'
-import { useConfig, useTheme } from '../../_mixins'
+import {
+  VOverflow,
+  type VOverflowInst,
+  type FollowerPlacement,
+  VResizeObserver
+} from 'vueuc'
+import { createId } from 'seemly'
+import { layoutSiderInjectionKey } from '../../layout/src/interface'
+import type { DropdownProps } from '../../dropdown'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
 import { call } from '../../_utils'
 import type { MaybeArray } from '../../_utils'
-import { itemRenderer } from './utils'
+import { isIgnoredNode, itemRenderer } from './utils'
 import { menuLight } from '../styles'
 import type { MenuTheme } from '../styles'
-import style from './styles/index.cssr'
-import {
+import type {
   MenuOption,
   MenuGroupOption,
   MenuIgnoredOption,
@@ -30,15 +38,16 @@ import {
   OnUpdateValue,
   OnUpdateKeys,
   OnUpdateValueImpl,
-  OnUpdateKeysImpl
+  OnUpdateKeysImpl,
+  MenuInst,
+  MenuNodeProps
 } from './interface'
-import { layoutSiderInjectionKey } from '../../layout/src/interface'
-import { FollowerPlacement } from 'vueuc'
-import { DropdownProps } from '../../dropdown'
 import { useCheckDeprecated } from './useCheckDeprecated'
 import { menuInjectionKey } from './context'
+import { NSubmenu } from './Submenu'
+import style from './styles/index.cssr'
 
-const menuProps = {
+export const menuProps = {
   ...(useTheme.props as ThemeProps<MenuTheme>),
   options: {
     type: Array as PropType<MenuMixedOption[]>,
@@ -77,6 +86,10 @@ const menuProps = {
     type: String,
     default: 'children'
   },
+  disabledField: {
+    type: String,
+    default: 'disabled'
+  },
   defaultExpandAll: Boolean,
   defaultExpandedKeys: Array as PropType<Key[]>,
   expandedKeys: Array as PropType<Key[]>,
@@ -94,6 +107,10 @@ const menuProps = {
     default: undefined
   },
   disabled: Boolean,
+  show: {
+    type: Boolean,
+    default: true
+  },
   inverted: Boolean,
   'onUpdate:expandedKeys': [Function, Array] as PropType<
   MaybeArray<OnUpdateKeys>
@@ -109,13 +126,14 @@ const menuProps = {
   renderExtra: Function as PropType<
   (option: MenuOption | MenuGroupOption) => VNodeChild
   >,
-  /** TODO: deprecate it */
+  dropdownProps: Object as PropType<DropdownProps>,
+  accordion: Boolean,
+  nodeProps: Function as PropType<MenuNodeProps>,
   dropdownPlacement: {
     type: String as PropType<FollowerPlacement>,
     default: 'bottom'
   },
-  dropdownProps: Object as PropType<DropdownProps>,
-  accordion: Boolean,
+  responsive: Boolean,
   // deprecated
   items: Array as PropType<Array<MenuOption | MenuGroupOption>>,
   onOpenNamesChange: [Function, Array] as PropType<MaybeArray<OnUpdateKeys>>,
@@ -138,7 +156,7 @@ export default defineComponent({
     if (__DEV__) {
       useCheckDeprecated(props)
     }
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, inlineThemeDisabled } = useConfig(props)
     const themeRef = useTheme(
       'Menu',
       '-menu',
@@ -163,12 +181,18 @@ export default defineComponent({
     })
 
     const treeMateRef = computed(() => {
-      const { keyField, childrenField } = props
+      const { keyField, childrenField, disabledField } = props
       return createTreeMate<MenuOption, MenuGroupOption, MenuIgnoredOption>(
         props.items || props.options,
         {
+          getIgnored (node) {
+            return isIgnoredNode(node)
+          },
           getChildren (node) {
             return node[childrenField]
+          },
+          getDisabled (node) {
+            return (node as any)[disabledField]
           },
           getKey (node) {
             return (node[keyField] as Key) ?? node.name
@@ -296,6 +320,272 @@ export default defineComponent({
       }
       doUpdateExpandedKeys(currentExpandedKeys)
     }
+    const showOption: MenuInst['showOption'] = (key?: Key): void => {
+      const selectedKeyPath = treeMateRef.value.getPath(
+        key ?? mergedValueRef.value,
+        {
+          includeSelf: false
+        }
+      ).keyPath
+      if (!selectedKeyPath.length) return
+      const currentExpandedKeys = Array.from(mergedExpandedKeysRef.value)
+      const nextExpandedKeys = new Set([
+        ...currentExpandedKeys,
+        ...selectedKeyPath
+      ])
+      if (props.accordion) {
+        treeKeysLevelOneRef.value.forEach((firstLevelKey) => {
+          if (
+            nextExpandedKeys.has(firstLevelKey) &&
+            !selectedKeyPath.includes(firstLevelKey)
+          ) {
+            nextExpandedKeys.delete(firstLevelKey)
+          }
+        })
+      }
+      doUpdateExpandedKeys(Array.from(nextExpandedKeys))
+    }
+    const cssVarsRef = computed(() => {
+      const { inverted } = props
+      const {
+        common: { cubicBezierEaseInOut },
+        self
+      } = themeRef.value
+      const {
+        borderRadius,
+        borderColorHorizontal,
+        fontSize,
+        itemHeight,
+        dividerColor
+      } = self
+      const vars: any = {
+        '--n-divider-color': dividerColor,
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-font-size': fontSize,
+        '--n-border-color-horizontal': borderColorHorizontal,
+        '--n-border-radius': borderRadius,
+        '--n-item-height': itemHeight
+      }
+      if (inverted) {
+        vars['--n-group-text-color'] = self.groupTextColorInverted
+        vars['--n-color'] = self.colorInverted
+        vars['--n-item-text-color'] = self.itemTextColorInverted
+        vars['--n-item-text-color-hover'] = self.itemTextColorHoverInverted
+        vars['--n-item-text-color-active'] = self.itemTextColorActiveInverted
+        vars['--n-item-text-color-child-active'] =
+          self.itemTextColorChildActiveInverted
+        vars['--n-item-text-color-child-active-hover'] =
+          self.itemTextColorChildActiveInverted
+        vars['--n-item-text-color-active-hover'] =
+          self.itemTextColorActiveHoverInverted
+        vars['--n-item-icon-color'] = self.itemIconColorInverted
+        vars['--n-item-icon-color-hover'] = self.itemIconColorHoverInverted
+        vars['--n-item-icon-color-active'] = self.itemIconColorActiveInverted
+        vars['--n-item-icon-color-active-hover'] =
+          self.itemIconColorActiveHoverInverted
+        vars['--n-item-icon-color-child-active'] =
+          self.itemIconColorChildActiveInverted
+        vars['--n-item-icon-color-child-active-hover'] =
+          self.itemIconColorChildActiveHoverInverted
+        vars['--n-item-icon-color-collapsed'] =
+          self.itemIconColorCollapsedInverted
+        vars['--n-item-text-color-horizontal'] =
+          self.itemTextColorHorizontalInverted
+        vars['--n-item-text-color-hover-horizontal'] =
+          self.itemTextColorHoverHorizontalInverted
+        vars['--n-item-text-color-active-horizontal'] =
+          self.itemTextColorActiveHorizontalInverted
+        vars['--n-item-text-color-child-active-horizontal'] =
+          self.itemTextColorChildActiveHorizontalInverted
+        vars['--n-item-text-color-child-active-hover-horizontal'] =
+          self.itemTextColorChildActiveHoverHorizontalInverted
+        vars['--n-item-text-color-active-hover-horizontal'] =
+          self.itemTextColorActiveHoverHorizontalInverted
+        vars['--n-item-icon-color-horizontal'] =
+          self.itemIconColorHorizontalInverted
+        vars['--n-item-icon-color-hover-horizontal'] =
+          self.itemIconColorHoverHorizontalInverted
+        vars['--n-item-icon-color-active-horizontal'] =
+          self.itemIconColorActiveHorizontalInverted
+        vars['--n-item-icon-color-active-hover-horizontal'] =
+          self.itemIconColorActiveHoverHorizontalInverted
+        vars['--n-item-icon-color-child-active-horizontal'] =
+          self.itemIconColorChildActiveHorizontalInverted
+        vars['--n-item-icon-color-child-active-hover-horizontal'] =
+          self.itemIconColorChildActiveHoverHorizontalInverted
+        vars['--n-arrow-color'] = self.arrowColorInverted
+        vars['--n-arrow-color-hover'] = self.arrowColorHoverInverted
+        vars['--n-arrow-color-active'] = self.arrowColorActiveInverted
+        vars['--n-arrow-color-active-hover'] =
+          self.arrowColorActiveHoverInverted
+        vars['--n-arrow-color-child-active'] =
+          self.arrowColorChildActiveInverted
+        vars['--n-arrow-color-child-active-hover'] =
+          self.arrowColorChildActiveHoverInverted
+        vars['--n-item-color-hover'] = self.itemColorHoverInverted
+        vars['--n-item-color-active'] = self.itemColorActiveInverted
+        vars['--n-item-color-active-hover'] = self.itemColorActiveHoverInverted
+        vars['--n-item-color-active-collapsed'] =
+          self.itemColorActiveCollapsedInverted
+      } else {
+        vars['--n-group-text-color'] = self.groupTextColor
+        vars['--n-color'] = self.color
+        vars['--n-item-text-color'] = self.itemTextColor
+        vars['--n-item-text-color-hover'] = self.itemTextColorHover
+        vars['--n-item-text-color-active'] = self.itemTextColorActive
+        vars['--n-item-text-color-child-active'] = self.itemTextColorChildActive
+        vars['--n-item-text-color-child-active-hover'] =
+          self.itemTextColorChildActiveHover
+        vars['--n-item-text-color-active-hover'] = self.itemTextColorActiveHover
+        vars['--n-item-icon-color'] = self.itemIconColor
+        vars['--n-item-icon-color-hover'] = self.itemIconColorHover
+        vars['--n-item-icon-color-active'] = self.itemIconColorActive
+        vars['--n-item-icon-color-active-hover'] = self.itemIconColorActiveHover
+        vars['--n-item-icon-color-child-active'] = self.itemIconColorChildActive
+        vars['--n-item-icon-color-child-active-hover'] =
+          self.itemIconColorChildActiveHover
+        vars['--n-item-icon-color-collapsed'] = self.itemIconColorCollapsed
+        vars['--n-item-text-color-horizontal'] = self.itemTextColorHorizontal
+        vars['--n-item-text-color-hover-horizontal'] =
+          self.itemTextColorHoverHorizontal
+        vars['--n-item-text-color-active-horizontal'] =
+          self.itemTextColorActiveHorizontal
+        vars['--n-item-text-color-child-active-horizontal'] =
+          self.itemTextColorChildActiveHorizontal
+        vars['--n-item-text-color-child-active-hover-horizontal'] =
+          self.itemTextColorChildActiveHoverHorizontal
+        vars['--n-item-text-color-active-hover-horizontal'] =
+          self.itemTextColorActiveHoverHorizontal
+        vars['--n-item-icon-color-horizontal'] = self.itemIconColorHorizontal
+        vars['--n-item-icon-color-hover-horizontal'] =
+          self.itemIconColorHoverHorizontal
+        vars['--n-item-icon-color-active-horizontal'] =
+          self.itemIconColorActiveHorizontal
+        vars['--n-item-icon-color-active-hover-horizontal'] =
+          self.itemIconColorActiveHoverHorizontal
+        vars['--n-item-icon-color-child-active-horizontal'] =
+          self.itemIconColorChildActiveHorizontal
+        vars['--n-item-icon-color-child-active-hover-horizontal'] =
+          self.itemIconColorChildActiveHoverHorizontal
+        vars['--n-arrow-color'] = self.arrowColor
+        vars['--n-arrow-color-hover'] = self.arrowColorHover
+        vars['--n-arrow-color-active'] = self.arrowColorActive
+        vars['--n-arrow-color-active-hover'] = self.arrowColorActiveHover
+        vars['--n-arrow-color-child-active'] = self.arrowColorChildActive
+        vars['--n-arrow-color-child-active-hover'] =
+          self.arrowColorChildActiveHover
+        vars['--n-item-color-hover'] = self.itemColorHover
+        vars['--n-item-color-active'] = self.itemColorActive
+        vars['--n-item-color-active-hover'] = self.itemColorActiveHover
+        vars['--n-item-color-active-collapsed'] = self.itemColorActiveCollapsed
+      }
+      return vars
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'menu',
+        computed(() => (props.inverted ? 'a' : 'b')),
+        cssVarsRef,
+        props
+      )
+      : undefined
+
+    const ellipsisNodeId = createId()
+    const overflowRef = ref<VOverflowInst | null>(null)
+    const counterRef = ref<HTMLElement | null>(null)
+    let isFirstResize = true
+    const onResize = (): void => {
+      if (isFirstResize) {
+        isFirstResize = false
+      } else {
+        overflowRef.value?.sync({
+          showAllItemsBeforeCalculate: true
+        })
+      }
+    }
+    function getCounter (): HTMLElement | null {
+      return document.getElementById(ellipsisNodeId)
+    }
+    const ellipsisFromIndexRef = ref(-1)
+    function onUpdateCount (count: number): void {
+      ellipsisFromIndexRef.value = props.options.length - count
+    }
+    function onUpdateOverflow (overflow: boolean): void {
+      if (!overflow) {
+        ellipsisFromIndexRef.value = -1
+      }
+    }
+    const ellipsisOptionRef = computed<MenuOption>(() => {
+      const ellipsisFromIndex = ellipsisFromIndexRef.value
+      const option: MenuOption = {
+        children:
+          ellipsisFromIndex === -1 ? [] : props.options.slice(ellipsisFromIndex)
+      }
+      return option
+    })
+    const ellipsisTreeMateRef = computed(() => {
+      const { childrenField, disabledField, keyField } = props
+      return createTreeMate<MenuOption, MenuGroupOption, MenuIgnoredOption>(
+        [ellipsisOptionRef.value],
+        {
+          getIgnored (node) {
+            return isIgnoredNode(node)
+          },
+          getChildren (node) {
+            return node[childrenField]
+          },
+          getDisabled (node) {
+            return (node as any)[disabledField]
+          },
+          getKey (node) {
+            return (node[keyField] as Key) ?? node.name
+          }
+        }
+      )
+    })
+    const emptyTmNodeRef = computed(() => {
+      return createTreeMate<MenuOption, MenuGroupOption, MenuIgnoredOption>([
+        {}
+      ]).treeNodes[0]
+    })
+    function renderCounter (): VNodeChild {
+      if (ellipsisFromIndexRef.value === -1) {
+        // Only a placeholder
+        return (
+          <NSubmenu
+            root
+            level={0}
+            key="__ellpisisGroupPlaceholder__"
+            internalKey="__ellpisisGroupPlaceholder__"
+            title="···"
+            tmNode={emptyTmNodeRef.value}
+            domId={ellipsisNodeId}
+            isEllipsisPlaceholder
+          />
+        )
+      }
+      const tmNode = ellipsisTreeMateRef.value.treeNodes[0]
+      const activePath = activePathRef.value
+      const childActive = !!tmNode.children?.some((tmNode) => {
+        return activePath.includes(tmNode.key)
+      })
+      return (
+        <NSubmenu
+          level={0}
+          root
+          key="__ellpisisGroup__"
+          internalKey="__ellpisisGroup__"
+          title="···"
+          virtualChildActive={childActive}
+          tmNode={tmNode}
+          domId={ellipsisNodeId}
+          rawNodes={(tmNode.rawNode as MenuOption).children || []}
+          tmNodes={tmNode.children || []}
+          isEllipsisPlaceholder
+        />
+      )
+    }
+
     return {
       mergedClsPrefix: mergedClsPrefixRef,
       controlledExpandedKeys: controlledExpandedKeysRef,
@@ -307,90 +597,69 @@ export default defineComponent({
       tmNodes: tmNodesRef,
       mergedTheme: themeRef,
       mergedCollapsed: mergedCollapsedRef,
-      cssVars: computed(() => {
-        const { inverted } = props
-        const {
-          common: { cubicBezierEaseInOut },
-          self
-        } = themeRef.value
-        const {
-          borderRadius,
-          borderColorHorizontal,
-          fontSize,
-          itemHeight,
-          dividerColor
-        } = self
-        const vars: any = {
-          '--n-divider-color': dividerColor,
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-font-size': fontSize,
-          '--n-border-color-horizontal': borderColorHorizontal,
-          '--n-border-radius': borderRadius,
-          '--n-item-height': itemHeight
-        }
-        if (inverted) {
-          vars['--n-group-text-color'] = self.groupTextColorInverted
-          vars['--n-color'] = self.colorInverted
-          vars['--n-item-text-color'] = self.itemTextColorInverted
-          vars['--n-arrow-color'] = self.arrowColorInverted
-          vars['--n-arrow-color-hover'] = self.arrowColorHoverInverted
-          vars['--n-arrow-color-active'] = self.arrowColorActiveInverted
-          vars['--n-arrow-color-child-active'] =
-            self.arrowColorChildActiveInverted
-          vars['--n-item-icon-color'] = self.itemIconColorInverted
-          vars['--n-item-text-color-hover'] = self.itemTextColorHoverInverted
-          vars['--n-item-icon-color-hover'] = self.itemIconColorHoverInverted
-          vars['--n-item-text-color-active'] = self.itemTextColorActiveInverted
-          vars['--n-item-icon-color-active'] = self.itemIconColorActiveInverted
-          vars['--n-item-icon-color-collapsed'] =
-            self.itemIconColorCollapsedInverted
-          vars['--n-item-color-active'] = self.itemColorActiveInverted
-          vars['--n-item-color-active-collapsed'] =
-            self.itemColorActiveCollapsedInverted
-          vars['--n-item-text-color-child-active'] =
-            self.itemTextColorChildActiveInverted
-          vars['--n-item-icon-color-child-active'] =
-            self.itemIconColorChildActiveInverted
-        } else {
-          vars['--n-group-text-color'] = self.groupTextColor
-          vars['--n-color'] = self.color
-          vars['--n-item-text-color'] = self.itemTextColor
-          vars['--n-arrow-color'] = self.arrowColor
-          vars['--n-arrow-color-hover'] = self.arrowColorHover
-          vars['--n-arrow-color-active'] = self.arrowColorActive
-          vars['--n-arrow-color-child-active'] = self.arrowColorChildActive
-          vars['--n-item-icon-color'] = self.itemIconColor
-          vars['--n-item-text-color-hover'] = self.itemTextColorHover
-          vars['--n-item-icon-color-hover'] = self.itemIconColorHover
-          vars['--n-item-text-color-active'] = self.itemTextColorActive
-          vars['--n-item-icon-color-active'] = self.itemIconColorActive
-          vars['--n-item-icon-color-collapsed'] = self.itemIconColorCollapsed
-          vars['--n-item-color-active'] = self.itemColorActive
-          vars['--n-item-color-active-collapsed'] =
-            self.itemColorActiveCollapsed
-          vars['--n-item-text-color-child-active'] =
-            self.itemTextColorChildActive
-          vars['--n-item-icon-color-child-active'] =
-            self.itemIconColorChildActive
-        }
-        return vars
-      })
-    }
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      overflowRef,
+      counterRef,
+      updateCounter: () => {},
+      onResize,
+      onUpdateOverflow,
+      onUpdateCount,
+      renderCounter,
+      getCounter,
+      onRender: themeClassHandle?.onRender,
+      showOption,
+      deriveResponsiveState: onResize
+    } satisfies MenuInst & Record<string, unknown>
   },
   render () {
-    const { mergedClsPrefix, mode } = this
-    return (
+    const { mergedClsPrefix, mode, themeClass, onRender } = this
+    onRender?.()
+    const renderMenuItemNodes = (): VNodeChild[] =>
+      this.tmNodes.map((tmNode) => itemRenderer(tmNode, this.$props))
+    const horizontal = mode === 'horizontal'
+    const finalResponsive = horizontal && this.responsive
+    const renderMainNode = (): VNode => (
       <div
         role={mode === 'horizontal' ? 'menubar' : 'menu'}
         class={[
           `${mergedClsPrefix}-menu`,
+          themeClass,
           `${mergedClsPrefix}-menu--${mode}`,
+          finalResponsive && `${mergedClsPrefix}-menu--responsive`,
           this.mergedCollapsed && `${mergedClsPrefix}-menu--collapsed`
         ]}
-        style={this.cssVars as CSSProperties}
+        style={this.cssVars}
       >
-        {this.tmNodes.map((tmNode) => itemRenderer(tmNode, this.$props))}
+        {finalResponsive ? (
+          <VOverflow
+            ref="overflowRef"
+            onUpdateOverflow={this.onUpdateOverflow}
+            getCounter={this.getCounter}
+            onUpdateCount={this.onUpdateCount}
+            updateCounter={this.updateCounter}
+            style={{
+              width: '100%',
+              display: 'flex',
+              overflow: 'hidden'
+            }}
+          >
+            {{
+              default: renderMenuItemNodes,
+              counter: this.renderCounter
+            }}
+          </VOverflow>
+        ) : (
+          renderMenuItemNodes()
+        )}
       </div>
+    )
+    return finalResponsive ? (
+      <VResizeObserver onResize={this.onResize}>
+        {{ default: renderMainNode }}
+      </VResizeObserver>
+    ) : (
+      renderMainNode()
     )
   }
 })

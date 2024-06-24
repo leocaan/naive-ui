@@ -1,5 +1,5 @@
-import { TreeNode } from 'treemate'
-import { VNodeChild, HTMLAttributes } from 'vue'
+import { type TreeNode } from 'treemate'
+import { type VNodeChild, type HTMLAttributes } from 'vue'
 
 export type Key = string | number
 
@@ -10,6 +10,7 @@ export interface MenuOptionSharedPart {
   children?: Array<MenuOption | MenuGroupOption | MenuDividerOption>
   extra?: string | (() => VNodeChild)
   props?: HTMLAttributes
+  show?: boolean
   [key: string]: unknown
   /** @deprecated */
   titleExtra?: string | (() => VNodeChild)
@@ -75,3 +76,12 @@ export type OnUpdateValueImpl = (
 export type OnUpdateKeysImpl = (
   keys: string[] | number[] | Array<string | number>
 ) => void
+
+export type MenuNodeProps = (
+  option: MenuOption | MenuGroupOption
+) => HTMLAttributes & Record<string, string | number | undefined>
+
+export interface MenuInst {
+  showOption: (key?: Key) => void
+  deriveResponsiveState: () => void
+}

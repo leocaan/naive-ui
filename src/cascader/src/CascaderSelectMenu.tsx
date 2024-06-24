@@ -3,32 +3,33 @@ import {
   Transition,
   ref,
   inject,
-  toRef,
   defineComponent,
-  PropType,
+  type PropType,
   computed,
-  watch,
-  nextTick,
   withDirectives
 } from 'vue'
 import { clickoutside } from 'vdirs'
-import { createTreeMate, TreeNode } from 'treemate'
+import { createTreeMate, type TreeNode } from 'treemate'
 import type {
   SelectBaseOption,
   SelectGroupOption,
   SelectIgnoredOption
 } from '../../select/src/interface'
-import { InternalSelectMenuRef, NInternalSelectMenu } from '../../_internal'
-import { createSelectOptions } from './utils'
+import { createTmOptions } from '../../select/src/utils'
 import {
+  type InternalSelectMenuRef,
+  NInternalSelectMenu
+} from '../../_internal'
+import { createSelectOptions } from './utils'
+import { cascaderInjectionKey } from './interface'
+import type {
   TmNode,
   Value,
   Filter,
   CascaderOption,
-  SelectMenuInstance,
-  cascaderInjectionKey
+  SelectMenuInstance
 } from './interface'
-import { tmOptions } from '../../select/src/utils'
+import { resolveSlot } from '../../_utils'
 
 export default defineComponent({
   name: 'NCascaderSelectMenu',
@@ -64,11 +65,13 @@ export default defineComponent({
       mergedClsPrefixRef,
       mergedThemeRef,
       mergedCheckStrategyRef,
+      slots: cascaderSlots,
       syncSelectMenuPosition,
       closeMenu,
       handleSelectMenuClickOutside,
       doUncheck: cascaderDoUncheck,
-      doCheck: cascaderDoCheck
+      doCheck: cascaderDoCheck,
+      clearPattern
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     } = inject(cascaderInjectionKey)!
     const menuInstRef = ref<InternalSelectMenuRef | null>(null)
@@ -109,18 +112,11 @@ export default defineComponent({
       SelectBaseOption,
       SelectGroupOption,
       SelectIgnoredOption
-      >(filteredSelectOptionsRef.value, tmOptions)
+      >(filteredSelectOptionsRef.value, createTmOptions('value', 'children'))
     })
-    watch(toRef(props, 'value'), () => {
-      void nextTick(() => {
-        syncSelectMenuPosition()
-      })
-    })
-    watch(filteredSelectOptionsRef, () => {
-      void nextTick(() => {
-        syncSelectMenuPosition()
-      })
-    })
+    function handleResize (): void {
+      syncSelectMenuPosition()
+    }
     function handleToggle (tmNode: TreeNode<SelectBaseOption>): void {
       doCheck(tmNode)
     }
@@ -137,6 +133,7 @@ export default defineComponent({
         } else if (mergedValue === null) {
           cascaderDoCheck(tmNode.key)
         }
+        clearPattern()
       } else {
         cascaderDoCheck(tmNode.key)
         // currently the select menu is set to focusable
@@ -174,13 +171,15 @@ export default defineComponent({
       mergedClsPrefix: mergedClsPrefixRef,
       menuInstRef,
       selectTreeMate: selectTreeMateRef,
+      handleResize,
       handleToggle,
       handleClickOutside,
+      cascaderSlots,
       ...exposedRef
     }
   },
   render () {
-    const { mergedClsPrefix, isMounted, mergedTheme } = this
+    const { mergedClsPrefix, isMounted, mergedTheme, cascaderSlots } = this
     return (
       <Transition name="fade-in-scale-up-transition" appear={isMounted}>
         {{
@@ -189,6 +188,7 @@ export default defineComponent({
               ? withDirectives(
                   <NInternalSelectMenu
                     ref="menuInstRef"
+                    onResize={this.handleResize}
                     clsPrefix={mergedClsPrefix}
                     class={`${mergedClsPrefix}-cascader-menu`}
                     autoPending
@@ -200,8 +200,20 @@ export default defineComponent({
                     multiple={this.multiple}
                     value={this.value}
                     onToggle={this.handleToggle}
-                  />,
-                  [[clickoutside, this.handleClickOutside]]
+                  >
+                    {{
+                      empty: () =>
+                        resolveSlot(cascaderSlots['not-found'], () => [])
+                    }}
+                  </NInternalSelectMenu>,
+                  [
+                    [
+                      clickoutside,
+                      this.handleClickOutside,
+                      undefined as unknown as string,
+                      { capture: true }
+                    ]
+                  ]
               )
               : null
         }}

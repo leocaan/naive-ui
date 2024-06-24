@@ -1,4 +1,4 @@
-import { h, VNode, VNodeChild } from 'vue'
+import { h, type VNode, type VNodeChild } from 'vue'
 import type { TreeNode } from 'treemate'
 import { keep, keysOf } from '../../_utils'
 // eslint-disable-next-line import/no-cycle
@@ -7,7 +7,7 @@ import { NMenuOptionGroup, menuItemGroupProps } from './MenuOptionGroup'
 import { NSubmenu, submenuProps } from './Submenu'
 import { NMenuOption, menuItemProps } from './MenuOption'
 import NMenuDivider from './MenuDivider'
-import {
+import type {
   MenuOption,
   MenuGroupOption,
   MenuIgnoredOption,
@@ -34,14 +34,17 @@ export function isDividerNode (
 export function itemRenderer (
   tmNode: TreeNode<MenuOption, MenuGroupOption, MenuIgnoredOption>,
   menuProps: MenuSetupProps
-): VNode | undefined {
+): VNode | null {
   const { rawNode } = tmNode
-
+  const { show } = rawNode
+  if (show === false) {
+    return null
+  }
   if (isIgnoredNode(rawNode)) {
     if (isDividerNode(rawNode)) {
       return <NMenuDivider key={tmNode.key} {...rawNode.props} />
     }
-    return undefined
+    return null
   }
 
   const { labelField } = menuProps
@@ -64,7 +67,7 @@ export function itemRenderer (
     if (tmNode.isGroup) {
       return h(
         NMenuOptionGroup,
-        keep(props, groupPropKeys, { tmNodes: tmNode.children, key })
+        keep(props, groupPropKeys, { tmNode, tmNodes: tmNode.children, key })
       )
     }
     return h(

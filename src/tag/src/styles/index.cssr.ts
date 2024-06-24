@@ -4,9 +4,9 @@ import { c, cB, cE, cM, cNotM } from '../../../_utils/cssr'
 // --n-bezier
 // --n-border-radius
 // --n-border
-// --n-close-color
-// --n-close-color-hover
-// --n-close-color-pressed
+// --n-close-icon-color
+// --n-close-icon-color-hover
+// --n-close-icon-color-pressed
 // --n-close-margin
 // --n-close-size
 // --n-color
@@ -25,7 +25,9 @@ import { c, cB, cE, cM, cNotM } from '../../../_utils/cssr'
 // --n-text-color-checked
 // --n-text-color-hover-checkable
 // --n-text-color-pressed-checkable
+// --n-font-weight-strong
 export default cB('tag', `
+  --n-close-margin: var(--n-close-margin-top) var(--n-close-margin-right) var(--n-close-margin-bottom) var(--n-close-margin-left);
   white-space: nowrap;
   position: relative;
   box-sizing: border-box;
@@ -47,6 +49,9 @@ export default cB('tag', `
   height: var(--n-height);
   font-size: var(--n-font-size);
 `, [
+  cM('strong', `
+    font-weight: var(--n-font-weight-strong);
+  `),
   cE('border', `
     pointer-events: none;
     position: absolute;
@@ -58,22 +63,40 @@ export default cB('tag', `
     border: var(--n-border);
     transition: border-color .3s var(--n-bezier);
   `),
+  cE('icon', `
+    display: flex;
+    margin: 0 4px 0 0;
+    color: var(--n-text-color);
+    transition: color .3s var(--n-bezier);
+    font-size: var(--n-avatar-size-override);
+  `),
   cE('avatar', `
     display: flex;
-    margin-right: 6px;
+    margin: 0 6px 0 0;
   `),
   cE('close', `
-    font-size: var(--n-close-size);
     margin: var(--n-close-margin);
-    transition: color .3s var(--n-bezier);
-    cursor: pointer;
+    transition:
+      background-color .3s var(--n-bezier),
+      color .3s var(--n-bezier);
   `),
   cM('round', `
-    padding: 0 calc(var(--n-height) / 2);
+    padding: 0 calc(var(--n-height) / 3);
     border-radius: calc(var(--n-height) / 2);
   `, [
+    cE('icon', `
+      margin: 0 4px 0 calc((var(--n-height) - 8px) / -2);
+    `),
     cE('avatar', `
-      margin-left: calc((var(--n-height) - 8px) / -2);
+      margin: 0 6px 0 calc((var(--n-height) - 8px) / -2);
+    `),
+    cM('closable', `
+      padding: 0 calc(var(--n-height) / 4) 0 calc(var(--n-height) / 3);
+    `)
+  ]),
+  cM('icon, avatar', [
+    cM('round', `
+      padding: 0 calc(var(--n-height) / 3) 0 calc(var(--n-height) / 2);
     `)
   ]),
   cM('disabled', `

@@ -3,14 +3,15 @@ import { h, ref, defineComponent, inject, computed, watchEffect } from 'vue'
 import { formatLength } from '../../_utils'
 import TableHeader from './TableParts/Header'
 import TableBody from './TableParts/Body'
-import {
-  dataTableInjectionKey,
+import type {
   MainTableBodyRef,
   MainTableHeaderRef,
   MainTableRef
 } from './interface'
+import { dataTableInjectionKey } from './interface'
 
 export default defineComponent({
+  name: 'MainTable',
   setup () {
     const {
       mergedClsPrefixRef,
@@ -61,7 +62,11 @@ export default defineComponent({
     }
     const exposedMethods: MainTableRef = {
       getBodyElement,
-      getHeaderElement
+      getHeaderElement,
+      scrollTo (arg0: any, arg1?: any) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        bodyInstRef.value?.scrollTo(arg0, arg1)
+      }
     }
     watchEffect(() => {
       const { value: selfEl } = selfElRef

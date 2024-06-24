@@ -11,6 +11,7 @@ describe('n-page-header', () => {
 
     expect(wrapper.find('.n-page-header__title').exists()).toBe(true)
     expect(wrapper.find('.n-page-header__title').html()).toContain('test-title')
+    wrapper.unmount()
   })
 
   it('should work with `extra` prop', async () => {
@@ -18,6 +19,7 @@ describe('n-page-header', () => {
 
     expect(wrapper.find('.n-page-header__extra').exists()).toBe(true)
     expect(wrapper.find('.n-page-header__extra').html()).toContain('test-extra')
+    wrapper.unmount()
   })
 
   it('should work with `subtitle` prop', async () => {
@@ -27,6 +29,7 @@ describe('n-page-header', () => {
     expect(wrapper.find('.n-page-header__subtitle').html()).toContain(
       'test-subtitle'
     )
+    wrapper.unmount()
   })
 
   it('should work with `on-back` prop', async () => {
@@ -36,10 +39,12 @@ describe('n-page-header', () => {
     expect(wrapper.find('.n-page-header__back').exists()).toBe(true)
     await wrapper.find('.n-page-header__back').trigger('click')
     expect(handleOnBack).toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('should work with slots', async () => {
     const wrapper = mount(NPageHeader, {
+      props: { onBack: () => {} },
       slots: {
         avatar: () => 'avatar-slot',
         header: () => 'header-slot',
@@ -47,7 +52,8 @@ describe('n-page-header', () => {
         extra: () => 'extra-slot',
         footer: () => 'footer-slot',
         subtitle: () => 'subtitle-slot',
-        title: () => 'title-slot'
+        title: () => 'title-slot',
+        back: () => 'back-slot'
       }
     })
 
@@ -75,5 +81,8 @@ describe('n-page-header', () => {
     )
     expect(wrapper.find('.n-page-header__title').exists()).toBe(true)
     expect(wrapper.find('.n-page-header__title').html()).toContain('title-slot')
+    expect(wrapper.find('.n-page-header__back').exists()).toBe(true)
+    expect(wrapper.find('.n-page-header__back').html()).toContain('back-slot')
+    wrapper.unmount()
   })
 })

@@ -3,21 +3,35 @@ import {
   ref,
   computed,
   defineComponent,
-  PropType,
+  type PropType,
   inject,
-  watch,
-  VNode
+  type VNodeChild,
+  watchEffect,
+  onMounted,
+  onBeforeUnmount,
+  type ImgHTMLAttributes,
+  watch
 } from 'vue'
 import { VResizeObserver } from 'vueuc'
-import { avatarGroupInjectionKey } from './context'
-import type { Size, ObjectFit } from './interface'
+import { isImageSupportNativeLazy } from '../../_utils/env/is-native-lazy-load'
+import {
+  type IntersectionObserverOptions,
+  observeIntersection
+} from '../../image/src/utils'
 import { tagInjectionKey } from '../../tag/src/Tag'
-import { useConfig, useTheme } from '../../_mixins'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
+import {
+  createKey,
+  color2Class,
+  resolveWrappedSlot,
+  resolveSlot
+} from '../../_utils'
+import type { ExtractPublicPropTypes } from '../../_utils'
 import { avatarLight } from '../styles'
 import type { AvatarTheme } from '../styles'
-import { createKey } from '../../_utils'
-import type { ExtractPublicPropTypes } from '../../_utils'
+import { avatarGroupInjectionKey } from './context'
+import type { Size, ObjectFit } from './interface'
 import style from './styles/index.cssr'
 
 export const avatarProps = {
@@ -39,6 +53,12 @@ export const avatarProps = {
   },
   onError: Function as PropType<(e: Event) => void>,
   fallbackSrc: String,
+  intersectionObserverOptions: Object as PropType<IntersectionObserverOptions>,
+  lazy: Boolean,
+  onLoad: Function as PropType<(e: Event) => void>,
+  renderPlaceholder: Function as PropType<() => VNodeChild>,
+  renderFallback: Function as PropType<() => VNodeChild>,
+  imgProps: Object as PropType<ImgHTMLAttributes>,
   /** @deprecated */
   color: String
 } as const
@@ -49,7 +69,7 @@ export default defineComponent({
   name: 'Avatar',
   props: avatarProps,
   setup (props) {
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, inlineThemeDisabled } = useConfig(props)
     const hasLoadErrorRef = ref(false)
     let memoedTextHtml: string | null = null
     const textRef = ref<HTMLElement | null>(null)
@@ -104,94 +124,215 @@ export default defineComponent({
       if (NAvatarGroup) return true
       return props.bordered || false
     })
-    const handleError = (e: Event): void => {
-      hasLoadErrorRef.value = true
-      const { onError } = props
-      if (onError) {
-        onError(e)
+    const cssVarsRef = computed(() => {
+      const size = mergedSizeRef.value
+      const round = mergedRoundRef.value
+      const bordered = mergedBorderedRef.value
+      const { color: propColor } = props
+      const {
+        self: {
+          borderRadius,
+          fontSize,
+          color,
+          border,
+          colorModal,
+          colorPopover
+        },
+        common: { cubicBezierEaseInOut }
+      } = themeRef.value
+      let height: string
+      if (typeof size === 'number') {
+        height = `${size}px`
+      } else {
+        height = themeRef.value.self[createKey('height', size)]
       }
-    }
+      return {
+        '--n-font-size': fontSize,
+        '--n-border': bordered ? border : 'none',
+        '--n-border-radius': round ? '50%' : borderRadius,
+        '--n-color': propColor || color,
+        '--n-color-modal': propColor || colorModal,
+        '--n-color-popover': propColor || colorPopover,
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-merged-size': `var(--n-avatar-size-override, ${height})`
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'avatar',
+        computed(() => {
+          const size = mergedSizeRef.value
+          const round = mergedRoundRef.value
+          const bordered = mergedBorderedRef.value
+          const { color } = props
+          let hash = ''
+          if (size) {
+            if (typeof size === 'number') {
+              hash += `a${size}`
+            } else {
+              hash += size[0]
+            }
+          }
+          if (round) {
+            hash += 'b'
+          }
+          if (bordered) {
+            hash += 'c'
+          }
+          if (color) {
+            hash += color2Class(color)
+          }
+          return hash
+        }),
+        cssVarsRef,
+        props
+      )
+      : undefined
+
+    const shouldStartLoadingRef = ref(!props.lazy)
+
+    onMounted(() => {
+      // Use IntersectionObserver if lazy and intersectionObserverOptions is set
+      if (props.lazy && props.intersectionObserverOptions) {
+        let unobserve: (() => void) | undefined
+        const stopWatchHandle = watchEffect(() => {
+          unobserve?.()
+          unobserve = undefined
+          if (props.lazy) {
+            unobserve = observeIntersection(
+              selfRef.value,
+              props.intersectionObserverOptions,
+              shouldStartLoadingRef
+            )
+          }
+        })
+        onBeforeUnmount(() => {
+          stopWatchHandle()
+          unobserve?.()
+        })
+      }
+    })
+
     watch(
-      () => props.src,
-      () => (hasLoadErrorRef.value = false)
+      () => props.src || props.imgProps?.src,
+      () => {
+        hasLoadErrorRef.value = false
+      }
     )
+
+    const loadedRef = ref(!props.lazy)
+
     return {
       textRef,
       selfRef,
       mergedRoundRef,
       mergedClsPrefix: mergedClsPrefixRef,
       fitTextTransform,
-      cssVars: computed(() => {
-        const size = mergedSizeRef.value
-        const round = mergedRoundRef.value
-        const bordered = mergedBorderedRef.value
-        const { color: propColor } = props
-        const {
-          self: {
-            borderRadius,
-            fontSize,
-            color,
-            border,
-            colorModal,
-            colorPopover
-          },
-          common: { cubicBezierEaseInOut }
-        } = themeRef.value
-        let height: string
-        if (typeof size === 'number') {
-          height = `${size}px`
-        } else {
-          height = themeRef.value.self[createKey('height', size)]
-        }
-        return {
-          '--n-font-size': fontSize,
-          '--n-border': bordered ? border : 'none',
-          '--n-border-radius': round ? '50%' : borderRadius,
-          '--n-color': propColor || color,
-          '--n-color-modal': propColor || colorModal,
-          '--n-color-popover': propColor || colorPopover,
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-merged-size': `var(--n-avatar-size-override, ${height})`
-        }
-      }),
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender,
       hasLoadError: hasLoadErrorRef,
-      handleError
+      shouldStartLoading: shouldStartLoadingRef,
+      loaded: loadedRef,
+      mergedOnError: (e: Event) => {
+        if (!shouldStartLoadingRef.value) return
+        hasLoadErrorRef.value = true
+        const { onError, imgProps: { onError: imgPropsOnError } = {} } = props
+        onError?.(e)
+        imgPropsOnError?.(e)
+      },
+      mergedOnLoad: (e: Event) => {
+        const { onLoad, imgProps: { onLoad: imgPropsOnLoad } = {} } = props
+        onLoad?.(e)
+        imgPropsOnLoad?.(e)
+        loadedRef.value = true
+      }
     }
   },
   render () {
-    const { $slots, src, mergedClsPrefix } = this
-    let img: VNode
-    if (this.hasLoadError) {
-      img = <img src={this.fallbackSrc} style={{ objectFit: this.objectFit }} />
-    } else if (!(!$slots.default && src)) {
-      img = (
-        <VResizeObserver onResize={this.fitTextTransform}>
-          {{
-            default: () => (
-              <span ref="textRef" class={`${mergedClsPrefix}-avatar__text`}>
-                {$slots}
-              </span>
-            )
-          }}
-        </VResizeObserver>
-      )
-    } else {
-      img = (
-        <img
-          src={src}
-          onError={this.handleError}
-          style={{ objectFit: this.objectFit }}
-        />
-      )
-    }
+    const {
+      $slots,
+      src,
+      mergedClsPrefix,
+      lazy,
+      onRender,
+      loaded,
+      hasLoadError,
+      imgProps = {}
+    } = this
+    onRender?.()
+    let img: VNodeChild
+    const placeholderNode =
+      !loaded &&
+      !hasLoadError &&
+      (this.renderPlaceholder
+        ? this.renderPlaceholder()
+        : this.$slots.placeholder?.())
 
+    if (this.hasLoadError) {
+      img = this.renderFallback
+        ? this.renderFallback()
+        : resolveSlot($slots.fallback, () => [
+            <img src={this.fallbackSrc} style={{ objectFit: this.objectFit }} />
+        ])
+    } else {
+      img = resolveWrappedSlot($slots.default, (children) => {
+        if (children) {
+          return (
+            <VResizeObserver onResize={this.fitTextTransform}>
+              {{
+                default: () => (
+                  <span ref="textRef" class={`${mergedClsPrefix}-avatar__text`}>
+                    {children}
+                  </span>
+                )
+              }}
+            </VResizeObserver>
+          )
+        } else if (src || imgProps.src) {
+          const loadSrc = this.src || imgProps.src
+          return h('img', {
+            ...imgProps,
+            loading:
+              // If interseciton observer options is set, do not use native lazy
+              isImageSupportNativeLazy &&
+              !this.intersectionObserverOptions &&
+              lazy
+                ? 'lazy'
+                : 'eager',
+            src:
+              lazy && this.intersectionObserverOptions
+                ? this.shouldStartLoading
+                  ? loadSrc
+                  : undefined
+                : loadSrc,
+            'data-image-src': loadSrc,
+            onLoad: this.mergedOnLoad,
+            onError: this.mergedOnError,
+            style: [
+              imgProps.style || '',
+              { objectFit: this.objectFit },
+              placeholderNode
+                ? {
+                    height: '0',
+                    width: '0',
+                    visibility: 'hidden',
+                    position: 'absolute'
+                  }
+                : ''
+            ]
+          })
+        }
+      })
+    }
     return (
       <span
         ref="selfRef"
-        class={`${mergedClsPrefix}-avatar`}
+        class={[`${mergedClsPrefix}-avatar`, this.themeClass]}
         style={this.cssVars as any}
       >
         {img}
+        {lazy && placeholderNode}
       </span>
     )
   }

@@ -1,8 +1,13 @@
-import * as globalComponents from '../src/components'
-import { resolve } from 'path'
+// The file is not designed to run directly. `cwd` should be project root.
+import path from 'path'
 import fs from 'fs-extra'
+import process from 'process'
+import * as globalComponents from '../src/components'
 
-const TYPE_ROOT = resolve(__dirname, '..')
+const TYPE_ROOT = process.cwd()
+
+// XButton is for tsx type checking, shouldn't be exported
+const excludeComponents = ['NxButton']
 
 function exist (path) {
   return fs.existsSync(path)
@@ -22,13 +27,13 @@ function parseComponentsDeclaration (code) {
 async function generateComponentsType () {
   const components = {}
   Object.keys(globalComponents).forEach((key) => {
-    const entry = `typeof import('naive-ui')['${key}']`
-    if (key.startsWith('N')) {
+    const entry = `(typeof import('naive-ui'))['${key}']`
+    if (key.startsWith('N') && !excludeComponents.includes(key)) {
       components[key] = entry
     }
   })
-  const originalContent = exist(resolve(TYPE_ROOT, 'volar.d.ts'))
-    ? await fs.readFile(resolve(TYPE_ROOT, 'volar.d.ts'), 'utf-8')
+  const originalContent = exist(path.resolve(TYPE_ROOT, 'volar.d.ts'))
+    ? await fs.readFile(path.resolve(TYPE_ROOT, 'volar.d.ts'), 'utf-8')
     : ''
 
   const originImports = parseComponentsDeclaration(originalContent)
@@ -45,17 +50,16 @@ async function generateComponentsType () {
       }
       return `${name}: ${v}`
     })
-  const code = `// Auto generated component declarations
+  const code = `/* eslint-disable @typescript-eslint/consistent-type-imports */\n// Auto generated component declarations
 declare module 'vue' {
   export interface GlobalComponents {
     ${lines.join('\n    ')}
-    [key: string]: any
   }
 }
 export {}
 `
   if (code !== originalContent) {
-    await fs.writeFile(resolve(TYPE_ROOT, 'volar.d.ts'), code, 'utf-8')
+    await fs.writeFile(path.resolve(TYPE_ROOT, 'volar.d.ts'), code, 'utf-8')
   }
 }
 generateComponentsType()

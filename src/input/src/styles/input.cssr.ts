@@ -32,6 +32,7 @@ import { cB, c, cE, cM, cNotM } from '../../../_utils/cssr'
 // --n-icon-color-pressed
 // --n-icon-color-disabled
 // --n-count-text-color
+// --n-count-text-color-disabled
 // --n-loading-color
 // ...form item vars
 export default cB('input', `
@@ -65,6 +66,7 @@ export default cB('input', `
     background-color: #0000;
     text-align: inherit;
     transition:
+      -webkit-text-fill-color .3s var(--n-bezier),
       caret-color .3s var(--n-bezier),
       color .3s var(--n-bezier),
       text-decoration-color .3s var(--n-bezier);
@@ -84,7 +86,10 @@ export default cB('input', `
       height: 0;
       display: none;
     `),
-    c('&::placeholder', 'color: #0000;'),
+    c('&::placeholder', `
+      color: #0000;
+      -webkit-text-fill-color: transparent !important;
+    `),
     c('&:-webkit-autofill ~', [
       cE('placeholder', 'display: none;')
     ])
@@ -131,10 +136,11 @@ export default cB('input', `
   cE('input-mirror', `
     padding: 0;
     height: var(--n-height);
+    line-height: var(--n-height);
     overflow: hidden;
     visibility: hidden;
     position: static;
-    white-space: nowrap;
+    white-space: pre;
     pointer-events: none;
   `),
   cE('input-el', `
@@ -142,6 +148,7 @@ export default cB('input', `
     height: var(--n-height);
     line-height: var(--n-height);
   `, [
+    c('&[type=password]::-ms-reveal', 'display: none;'),
     c('+', [
       cE('placeholder', `
         display: flex;
@@ -153,6 +160,9 @@ export default cB('input', `
     cE('placeholder', 'white-space: nowrap;')
   ]),
   cE('eye', `
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: color .3s var(--n-bezier);
   `),
   // textarea
@@ -168,14 +178,8 @@ export default cB('input', `
         min-height: var(--n-height);
       `)
     ]),
-    // override scrollbar relative position
-    cE('textarea', `
-      position: static;
-    `),
     cE('textarea-el, textarea-mirror, placeholder', `
       height: 100%;
-      left: var(--n-padding-left);
-      right: var(--n-padding-right);
       padding-left: 0;
       padding-right: 0;
       padding-top: var(--n-padding-vertical);
@@ -188,8 +192,10 @@ export default cB('input', `
       margin: 0;
       resize: none;
       white-space: pre-wrap;
+      scroll-padding-block-end: var(--n-padding-vertical);
     `),
     cE('textarea-mirror', `
+      width: 100%;
       pointer-events: none;
       overflow: hidden;
       visibility: hidden;
@@ -206,6 +212,7 @@ export default cB('input', `
       align-items: center;
       transition: color .3s var(--n-bezier);
       color: var(--n-text-color);
+      white-space: nowrap;
     `, [
       cB('icon', `
         color: var(--n-icon-color);
@@ -234,6 +241,9 @@ export default cB('input', `
         color: var(--n-icon-color-disabled);
       `)
     ]),
+    cB('input-word-count', `
+      color: var(--n-count-text-color-disabled);
+    `),
     cE('suffix, prefix', 'color: var(--n-text-color-disabled);', [
       cB('icon', `
         color: var(--n-icon-color-disabled);
@@ -255,14 +265,14 @@ export default cB('input', `
         color: var(--n-icon-color-pressed);
       `)
     ]),
+    c('&:hover', [
+      cE('state-border', 'border: var(--n-border-hover);')
+    ]),
     cM('focus', 'background-color: var(--n-color-focus);', [
       cE('state-border', `
         border: var(--n-border-focus);
         box-shadow: var(--n-box-shadow-focus);
       `)
-    ]),
-    c('&:hover', [
-      cE('state-border', 'border: var(--n-border-hover);')
     ])
   ]),
   cE('border, state-border', `
@@ -314,11 +324,13 @@ export default cB('input', `
         `)
       ])
     ]),
-    cB('icon', `
-      transition: color .3s var(--n-bezier);
-      color: var(--n-icon-color);
-      font-size: var(--n-icon-size);
-    `),
+    c('>', [
+      cB('icon', `
+        transition: color .3s var(--n-bezier);
+        color: var(--n-icon-color);
+        font-size: var(--n-icon-size);
+      `)
+    ]),
     cB('base-icon', `
       font-size: var(--n-icon-size);
     `)
@@ -366,4 +378,12 @@ export default cB('input', `
       ])
     ])
   ]))
+])
+
+export const safariStyle = cB('input', [
+  cM('disabled', [
+    cE('input-el, textarea-el', `
+      -webkit-text-fill-color: var(--n-text-color-disabled);
+    `)
+  ])
 ])

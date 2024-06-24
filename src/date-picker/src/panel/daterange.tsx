@@ -7,7 +7,7 @@ import {
   FastForwardIcon
 } from '../../../_internal/icons'
 import { NBaseFocusDetector } from '../../../_internal'
-import { warnOnce } from '../../../_utils'
+import { resolveSlot, warnOnce } from '../../../_utils'
 import PanelHeader from './panelHeader'
 import { useDualCalendar, useDualCalendarProps } from './use-dual-calendar'
 
@@ -28,13 +28,18 @@ export default defineComponent({
     return useDualCalendar(props, 'daterange')
   },
   render () {
-    const { mergedClsPrefix, mergedTheme, shortcuts } = this
+    const { mergedClsPrefix, mergedTheme, shortcuts, onRender, $slots } = this
+    onRender?.()
     return (
       <div
         ref="selfRef"
         tabindex={0}
-        class={`${mergedClsPrefix}-date-panel ${mergedClsPrefix}-date-panel--daterange`}
-        onClick={this.resetSelectingStatus}
+        class={[
+          `${mergedClsPrefix}-date-panel`,
+          `${mergedClsPrefix}-date-panel--daterange`,
+          !this.panel && `${mergedClsPrefix}-date-panel--shadow`,
+          this.themeClass
+        ]}
         onKeydown={this.handlePanelKeyDown}
         onFocus={this.handlePanelFocus}
       >
@@ -47,13 +52,13 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month__fast-prev`}
               onClick={this.startCalendarPrevYear}
             >
-              <FastBackwardIcon />
+              {resolveSlot($slots['prev-year'], () => [<FastBackwardIcon />])}
             </div>
             <div
               class={`${mergedClsPrefix}-date-panel-month__prev`}
               onClick={this.startCalendarPrevMonth}
             >
-              <BackwardIcon />
+              {resolveSlot($slots['prev-month'], () => [<BackwardIcon />])}
             </div>
             <PanelHeader
               monthBeforeYear={this.locale.monthBeforeYear}
@@ -67,13 +72,13 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month__next`}
               onClick={this.startCalendarNextMonth}
             >
-              <ForwardIcon />
+              {resolveSlot($slots['next-month'], () => [<ForwardIcon />])}
             </div>
             <div
               class={`${mergedClsPrefix}-date-panel-month__fast-next`}
               onClick={this.startCalendarNextYear}
             >
-              <FastForwardIcon />
+              {resolveSlot($slots['next-year'], () => [<FastForwardIcon />])}
             </div>
           </div>
           <div class={`${mergedClsPrefix}-date-panel-weekdays`}>
@@ -111,9 +116,14 @@ export default defineComponent({
                       this.mergedIsDateDisabled(dateItem.ts)
                   }
                 ]}
-                onClick={() => this.handleDateClick(dateItem)}
-                onMouseenter={() => this.handleDateMouseEnter(dateItem)}
+                onClick={() => {
+                  this.handleDateClick(dateItem)
+                }}
+                onMouseenter={() => {
+                  this.handleDateMouseEnter(dateItem)
+                }}
               >
+                <div class={`${mergedClsPrefix}-date-panel-date__trigger`} />
                 {dateItem.dateObject.date}
                 {dateItem.isCurrentDate ? (
                   <div class={`${mergedClsPrefix}-date-panel-date__sup`} />
@@ -132,13 +142,13 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month__fast-prev`}
               onClick={this.endCalendarPrevYear}
             >
-              <FastBackwardIcon />
+              {resolveSlot($slots['prev-year'], () => [<FastBackwardIcon />])}
             </div>
             <div
               class={`${mergedClsPrefix}-date-panel-month__prev`}
               onClick={this.endCalendarPrevMonth}
             >
-              <BackwardIcon />
+              {resolveSlot($slots['prev-month'], () => [<BackwardIcon />])}
             </div>
             <PanelHeader
               monthBeforeYear={this.locale.monthBeforeYear}
@@ -152,13 +162,13 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month__next`}
               onClick={this.endCalendarNextMonth}
             >
-              <ForwardIcon />
+              {resolveSlot($slots['next-month'], () => [<ForwardIcon />])}
             </div>
             <div
               class={`${mergedClsPrefix}-date-panel-month__fast-next`}
               onClick={this.endCalendarNextYear}
             >
-              <FastForwardIcon />
+              {resolveSlot($slots['next-year'], () => [<FastForwardIcon />])}
             </div>
           </div>
           <div class={`${mergedClsPrefix}-date-panel-weekdays`}>
@@ -196,9 +206,14 @@ export default defineComponent({
                       this.mergedIsDateDisabled(dateItem.ts)
                   }
                 ]}
-                onClick={() => this.handleDateClick(dateItem)}
-                onMouseenter={() => this.handleDateMouseEnter(dateItem)}
+                onClick={() => {
+                  this.handleDateClick(dateItem)
+                }}
+                onMouseenter={() => {
+                  this.handleDateMouseEnter(dateItem)
+                }}
               >
+                <div class={`${mergedClsPrefix}-date-panel-date__trigger`} />
                 {dateItem.dateObject.date}
                 {dateItem.isCurrentDate ? (
                   <div class={`${mergedClsPrefix}-date-panel-date__sup`} />
@@ -254,7 +269,7 @@ export default defineComponent({
                   themeOverrides={mergedTheme.peerOverrides.Button}
                   size="tiny"
                   type="primary"
-                  disabled={this.isRangeInvalid}
+                  disabled={this.isRangeInvalid || this.isSelecting}
                   onClick={this.handleConfirmClick}
                 >
                   {{ default: () => this.locale.confirm }}

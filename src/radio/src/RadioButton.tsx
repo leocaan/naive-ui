@@ -1,27 +1,23 @@
 import { h, defineComponent } from 'vue'
-import type { ExtractPublicPropTypes } from '../../_utils'
-import useRadio from './use-radio'
+import { type ExtractPublicPropTypes, resolveWrappedSlot } from '../../_utils'
+import { setup, radioBaseProps } from './use-radio'
 
-export type RadioButtonProps = ExtractPublicPropTypes<typeof useRadio.props>
+export const radioButtonProps = radioBaseProps
+export type RadioButtonProps = ExtractPublicPropTypes<typeof radioBaseProps>
 
 export default defineComponent({
   name: 'RadioButton',
-  props: useRadio.props,
-  setup (props) {
-    return useRadio(props)
-  },
+  props: radioBaseProps,
+  setup,
   render () {
     const { mergedClsPrefix } = this
     return (
       <label
         class={[
           `${mergedClsPrefix}-radio-button`,
-          {
-            [`${mergedClsPrefix}-radio-button--disabled`]: this.mergedDisabled,
-            [`${mergedClsPrefix}-radio-button--checked`]:
-              this.renderSafeChecked,
-            [`${mergedClsPrefix}-radio-button--focus`]: this.focus
-          }
+          this.mergedDisabled && `${mergedClsPrefix}-radio-button--disabled`,
+          this.renderSafeChecked && `${mergedClsPrefix}-radio-button--checked`,
+          this.focus && [`${mergedClsPrefix}-radio-button--focus`]
         ]}
       >
         <input
@@ -37,7 +33,14 @@ export default defineComponent({
           onBlur={this.handleRadioInputBlur}
         />
         <div class={`${mergedClsPrefix}-radio-button__state-border`} />
-        <span ref="labelRef">{this.$slots}</span>
+        {resolveWrappedSlot(this.$slots.default, (children) => {
+          if (!children && !this.label) return null
+          return (
+            <div ref="labelRef" class={`${mergedClsPrefix}-radio__label`}>
+              {children || this.label}
+            </div>
+          )
+        })}
       </label>
     )
   }

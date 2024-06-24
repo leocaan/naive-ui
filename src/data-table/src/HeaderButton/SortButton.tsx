@@ -1,8 +1,8 @@
-import { defineComponent, PropType, h, computed, inject } from 'vue'
+import { defineComponent, type PropType, h, computed, inject } from 'vue'
 import { ArrowDownIcon } from '../../../_internal/icons'
 import { NBaseIcon } from '../../../_internal'
 import RenderSorter from './RenderSorter'
-import { dataTableInjectionKey, TableBaseColumn } from '../interface'
+import { dataTableInjectionKey, type TableBaseColumn } from '../interface'
 import { useConfig } from '../../../_mixins'
 
 export default defineComponent({
@@ -14,7 +14,7 @@ export default defineComponent({
     }
   },
   setup (props) {
-    const { NConfigProvider } = useConfig()
+    const { mergedComponentPropsRef } = useConfig()
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { mergedSortStateRef, mergedClsPrefixRef } = inject(
       dataTableInjectionKey
@@ -37,8 +37,8 @@ export default defineComponent({
     })
     const mergedRenderSorterRef = computed(() => {
       return (
-        NConfigProvider?.mergedComponentPropsRef.value?.DataTable
-          ?.renderSorter || props.column.renderSorter
+        mergedComponentPropsRef?.value?.DataTable?.renderSorter ||
+        props.column.renderSorter
       )
     })
     return {

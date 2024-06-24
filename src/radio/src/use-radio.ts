@@ -2,21 +2,22 @@ import {
   inject,
   ref,
   toRef,
-  ExtractPropTypes,
-  PropType,
-  Ref,
-  ComputedRef
+  type ExtractPropTypes,
+  type PropType,
+  type Ref,
+  type ComputedRef,
+  watchEffect
 } from 'vue'
 import { useMemo, useMergedState } from 'vooks'
 import { useConfig, useFormItem } from '../../_mixins'
-import { warn, call, createInjectionKey } from '../../_utils'
+import { call, createInjectionKey, warnOnce } from '../../_utils'
 import type { MaybeArray } from '../../_utils'
-import { OnUpdateValue, OnUpdateValueImpl } from './interface'
+import { type OnUpdateValue, type OnUpdateValueImpl } from './interface'
 
-const radioProps = {
+export const radioBaseProps = {
   name: String,
   value: {
-    type: [String, Number] as PropType<string | number>,
+    type: [String, Number, Boolean] as PropType<string | number | boolean>,
     default: 'on'
   },
   checked: {
@@ -28,6 +29,7 @@ const radioProps = {
     type: Boolean as PropType<boolean | undefined>,
     default: undefined
   },
+  label: String,
   size: String as PropType<'small' | 'medium' | 'large'>,
   onUpdateChecked: [Function, Array] as PropType<
   undefined | MaybeArray<(value: boolean) => void>
@@ -38,13 +40,6 @@ const radioProps = {
   // deprecated
   checkedValue: {
     type: Boolean as PropType<boolean | undefined>,
-    validator: () => {
-      warn(
-        'radio',
-        '`checked-value` is deprecated, please use `checked` instead.'
-      )
-      return true
-    },
     default: undefined
   }
 } as const
@@ -52,7 +47,7 @@ const radioProps = {
 export interface RadioGroupInjection {
   mergedClsPrefixRef: Ref<string>
   nameRef: Ref<string | undefined>
-  valueRef: Ref<string | number | null>
+  valueRef: Ref<string | number | boolean | null>
   mergedSizeRef: Ref<'small' | 'medium' | 'large'>
   disabledRef: Ref<boolean>
   doUpdateValue: OnUpdateValue
@@ -67,7 +62,6 @@ export interface UseRadio {
   labelRef: Ref<HTMLElement | null>
   mergedName: Ref<string | undefined>
   mergedDisabled: Ref<boolean>
-  uncontrolledChecked: Ref<boolean>
   renderSafeChecked: Ref<boolean>
   focus: Ref<boolean>
   mergedSize: ComputedRef<'small' | 'medium' | 'large'>
@@ -76,7 +70,17 @@ export interface UseRadio {
   handleRadioInputFocus: () => void
 }
 
-function setup (props: ExtractPropTypes<typeof radioProps>): UseRadio {
+function setup (props: ExtractPropTypes<typeof radioBaseProps>): UseRadio {
+  if (__DEV__) {
+    watchEffect(() => {
+      if (props.checkedValue !== undefined) {
+        warnOnce(
+          'radio',
+          '`checked-value` is deprecated, please use `checked` instead.'
+        )
+      }
+    })
+  }
   const formItem = useFormItem(props, {
     mergedSize (NFormItem) {
       const { size } = props
@@ -102,7 +106,7 @@ function setup (props: ExtractPropTypes<typeof radioProps>): UseRadio {
     }
   })
   const { mergedSizeRef, mergedDisabledRef } = formItem
-  const inputRef = ref<HTMLElement | null>(null)
+  const inputRef = ref<HTMLInputElement | null>(null)
   const labelRef = ref<HTMLElement | null>(null)
   const NRadioGroup = inject(radioGroupInjectionKey, null)
   const uncontrolledCheckedRef = ref(props.defaultChecked)
@@ -144,6 +148,12 @@ function setup (props: ExtractPropTypes<typeof radioProps>): UseRadio {
   }
   function handleRadioInputChange (): void {
     toggle()
+    // Restore element check prop's value to current state, since if doesn't
+    // reflect current VNode. If not, bug will happens in component with element
+    // that has internal state such as <input />.
+    if (inputRef.value) {
+      inputRef.value.checked = renderSafeCheckedRef.value
+    }
   }
   function handleRadioInputBlur (): void {
     focusRef.value = false
@@ -159,7 +169,6 @@ function setup (props: ExtractPropTypes<typeof radioProps>): UseRadio {
     labelRef,
     mergedName: mergedNameRef,
     mergedDisabled: mergedDisabledRef,
-    uncontrolledChecked: uncontrolledCheckedRef,
     renderSafeChecked: renderSafeCheckedRef,
     focus: focusRef,
     mergedSize: mergedSizeRef,
@@ -169,7 +178,5 @@ function setup (props: ExtractPropTypes<typeof radioProps>): UseRadio {
   }
 }
 
-setup.props = radioProps
-
-export type RadioProps = ExtractPropTypes<typeof radioProps>
-export default setup
+export type RadioBaseProps = ExtractPropTypes<typeof radioBaseProps>
+export { setup }

@@ -1,15 +1,6 @@
 // For a detailed explanation regarding each configuration property, visit:
 // https://jestjs.io/docs/en/configuration.html
 
-const fs = require('fs-extra')
-const esModules = ['lodash-es'].map((pkg) => {
-  if (fs.pathExistsSync('node_modules/.pnpm')) {
-    return `.pnpm/(.*)?${pkg}`
-  } else {
-    return pkg
-  }
-})
-
 module.exports = {
   // All imported modules in your tests should be mocked automatically
   // automock: false,
@@ -75,7 +66,10 @@ module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts', 'tsx'],
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-  // moduleNameMapper: {},
+  moduleNameMapper: {
+    '^lodash-es$': 'lodash',
+    '^date-fns/esm(.*)$': 'date-fns$1'
+  },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
   // modulePathIgnorePatterns: [],
@@ -131,7 +125,11 @@ module.exports = {
   testEnvironment: 'jest-environment-jsdom',
 
   // Options that will be passed to the testEnvironment
-  // testEnvironmentOptions: {},
+  testEnvironmentOptions: {
+    // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
+    url: 'http://localhost',
+    customExportConditions: ['node']
+  },
 
   // Adds a location field to test results
   // testLocationInResults: false,
@@ -154,20 +152,22 @@ module.exports = {
   // This option allows use of a custom test runner
   // testRunner: "jasmine2",
 
-  // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
-  testURL: 'http://localhost',
-
   // Setting this value to "fake" allows the use of fake timers for functions such as "setTimeout"
   // timers: "real",
 
   // A map from regular expressions to paths to transformers
   transform: {
-    '^.+\\.(jsx|js)?$': 'babel-jest',
-    '^.+\\.(tsx|ts)?$': 'ts-jest'
+    '^.+\\.(jsx|js|mjs)?$': 'babel-jest',
+    '^.+\\.(tsx|ts)?$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.test.json'
+      }
+    ]
   },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
-  transformIgnorePatterns: [`<rootDir>/node_modules/(?!${esModules})`],
+  transformIgnorePatterns: ['!node_modules/'],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them
   // unmockedModulePathPatterns: undefined,

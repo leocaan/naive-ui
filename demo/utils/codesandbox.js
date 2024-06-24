@@ -20,9 +20,11 @@ const appVue = `<template>
 <n-loading-bar-provider>
   <n-message-provider>
     <n-notification-provider>
-      <n-dialog-provider>
-        <demo />
-      </n-dialog-provider>
+      <n-modal-provider>
+        <n-dialog-provider>
+          <demo />
+        </n-dialog-provider>
+      </n-modal-provider>
     </n-notification-provider>
   </n-message-provider>
 </n-loading-bar-provider>
@@ -66,12 +68,13 @@ export function getCodeSandboxParams (code) {
         content: {
           dependencies: {
             ...getDeps(code),
-            vue: 'next',
-            'vue-router': 'next',
+            vue: 'latest',
+            'vue-router': 'latest',
             'naive-ui': 'latest'
           },
           devDependencies: {
-            '@vue/cli-plugin-babel': '~4.5.0'
+            '@vue/cli-plugin-babel': '~4.5.0',
+            typescript: '~4.6.3'
           }
         }
       },

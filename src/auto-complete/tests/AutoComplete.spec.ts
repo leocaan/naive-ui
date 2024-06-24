@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { NAutoComplete, AutoCompleteProps } from '../index'
+import { NAutoComplete, type AutoCompleteProps } from '../index'
 
 describe('n-auto-complete', () => {
   it('should work with import on demand', () => {
@@ -42,12 +42,12 @@ describe('n-auto-complete', () => {
     })
     const wrapper = mount(NAutoComplete, {
       props: {
-        options: options
+        options
       }
     })
-    expect(wrapper.find('.n-base-loading__icon').exists()).toBe(false)
+    expect(wrapper.find('.n-base-loading__container').exists()).toBe(false)
     await wrapper.setProps({ loading: true })
-    expect(wrapper.find('.n-base-loading__icon').exists()).toBe(true)
+    expect(wrapper.find('.n-base-loading__container').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -65,7 +65,7 @@ describe('n-auto-complete', () => {
 
   it('should work with `size` prop', async () => {
     ;(['small', 'medium', 'large'] as const).forEach((size) => {
-      const wrapper = mount(NAutoComplete, { props: { size: size } })
+      const wrapper = mount(NAutoComplete, { props: { size } })
       expect(wrapper.find('.n-input').attributes('style')).toMatchSnapshot()
       wrapper.unmount()
     })
@@ -91,10 +91,35 @@ describe('n-auto-complete', () => {
         }
         return false
       },
-      options: options
+      options
     })
     expect(document.querySelector('.n-auto-complete-menu')).toEqual(null)
     wrapper.find('input').setValue('a')
+    await wrapper.find('input').trigger('focus')
+    expect(document.querySelector('.n-auto-complete-menu')).not.toEqual(null)
+    wrapper.unmount()
+  })
+
+  it('should work with `append` prop and `getShow` prop', async () => {
+    const options: AutoCompleteProps['options'] = [
+      'gmail.com',
+      '163.com',
+      'qq.com'
+    ].map((suffix) => {
+      return {
+        label: suffix,
+        value: suffix
+      }
+    })
+    const wrapper = mount(NAutoComplete)
+    await wrapper.setProps({
+      getShow: (value: string | null) => {
+        return !!value?.endsWith('@')
+      },
+      options
+    })
+    expect(document.querySelector('.n-auto-complete-menu')).toEqual(null)
+    wrapper.find('input').setValue('@')
     await wrapper.find('input').trigger('focus')
     expect(document.querySelector('.n-auto-complete-menu')).not.toEqual(null)
     wrapper.unmount()
@@ -116,7 +141,7 @@ describe('n-auto-complete', () => {
   it('should work with `on-blur` prop', async () => {
     const onBlur = jest.fn()
     const wrapper = mount(NAutoComplete, {
-      props: { onBlur: onBlur }
+      props: { onBlur }
     })
     await wrapper.find('input').trigger('focus')
     await wrapper.find('input').trigger('blur')
@@ -127,11 +152,50 @@ describe('n-auto-complete', () => {
   it('should work with `on-focus` prop', async () => {
     const onFocus = jest.fn()
     const wrapper = mount(NAutoComplete, {
-      props: { onFocus: onFocus }
+      props: { onFocus }
     })
     await wrapper.find('input').trigger('focus')
     await wrapper.find('input').trigger('blur')
     expect(onFocus).toHaveBeenCalled()
     wrapper.unmount()
+  })
+
+  it('should work with `status` prop', async () => {
+    ;(['success', 'warning', 'error'] as const).forEach((status) => {
+      const wrapper = mount(NAutoComplete, { props: { status } })
+      expect(wrapper.find('.n-input').classes()).toContain(
+        `n-input--${status}-status`
+      )
+      wrapper.unmount()
+    })
+  })
+
+  it('should work with `placement` prop', async () => {
+    ;(
+      [
+        'top-start',
+        'top',
+        'top-end',
+        'right-start',
+        'right',
+        'right-end',
+        'bottom-start',
+        'bottom',
+        'bottom-end',
+        'left-start',
+        'left',
+        'left-end'
+      ] as const
+    ).forEach((placement) => {
+      const wrapper = mount(NAutoComplete, { props: { placement } })
+      setTimeout(() => {
+        expect(
+          document
+            .querySelector('.v-binder-follower-content')
+            ?.getAttribute('v-placement')
+        ).toBe(placement)
+        wrapper.unmount()
+      })
+    })
   })
 })

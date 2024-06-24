@@ -1,6 +1,9 @@
+import type { ImgHTMLAttributes, PropType, Ref } from 'vue'
 import type { ThemeProps } from '../../_mixins'
 import { useTheme } from '../../_mixins'
-import { ImageTheme } from '../styles'
+import { createInjectionKey } from '../../_utils'
+import type { ImageTheme } from '../styles'
+import type { ImageRenderToolbar } from './public-types'
 
 export interface MoveStrategy {
   moveVerticalDirection: 'verticalTop' | 'verticalBottom'
@@ -11,6 +14,15 @@ export interface MoveStrategy {
 
 export const imagePreviewSharedProps = {
   ...(useTheme.props as ThemeProps<ImageTheme>),
+  onPreviewPrev: Function as PropType<() => void>,
+  onPreviewNext: Function as PropType<() => void>,
   showToolbar: { type: Boolean, default: true },
-  showToolbarTooltip: Boolean
+  showToolbarTooltip: Boolean,
+  renderToolbar: Function as PropType<ImageRenderToolbar>
 }
+
+export interface ImageContext {
+  previewedImgPropsRef: Ref<ImgHTMLAttributes | undefined>
+}
+
+export const imageContextKey = createInjectionKey<ImageContext>('n-image')

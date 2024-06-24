@@ -9,7 +9,8 @@
     block-line
     :data="data"
     :default-expanded-keys="defaultExpandedKeys"
-    selectable
+    expand-on-click
+    checkable
   />
 </template>
 

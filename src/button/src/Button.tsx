@@ -3,15 +3,20 @@ import {
   ref,
   computed,
   inject,
-  onMounted,
   defineComponent,
-  PropType,
-  CSSProperties,
-  ButtonHTMLAttributes,
-  watchEffect
+  type PropType,
+  type CSSProperties,
+  type ButtonHTMLAttributes,
+  watchEffect,
+  type ExtractPropTypes,
+  type VNodeChild
 } from 'vue'
 import { useMemo } from 'vooks'
+import { changeColor } from 'seemly'
 import { createHoverColor, createPressedColor } from '../../_utils/color/index'
+import { buttonGroupInjectionKey } from '../../button-group/src/context'
+import { useRtl } from '../../_mixins/use-rtl'
+import { isSafari } from '../../_utils/env/browser'
 import { useConfig, useFormItem, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
 import {
@@ -21,17 +26,21 @@ import {
   NBaseWave
 } from '../../_internal'
 import type { BaseWaveRef } from '../../_internal'
-import { call, color2Class, createKey, warnOnce } from '../../_utils'
+import {
+  call,
+  color2Class,
+  createKey,
+  isSlotEmpty,
+  resolveWrappedSlot,
+  warnOnce
+} from '../../_utils'
 import type { ExtractPublicPropTypes, MaybeArray } from '../../_utils'
 import { buttonLight } from '../styles'
 import type { ButtonTheme } from '../styles'
-import { buttonGroupInjectionKey } from './ButtonGroup'
 import type { Type, Size } from './interface'
-import style from './styles/button.cssr'
-import useRtl from '../../_mixins/use-rtl'
-import { changeColor } from 'seemly'
+import style from './styles/index.cssr'
 
-const buttonProps = {
+export const buttonProps = {
   ...(useTheme.props as ThemeProps<ButtonTheme>),
   color: String,
   textColor: String,
@@ -64,6 +73,7 @@ const buttonProps = {
     default: 'default'
   },
   dashed: Boolean,
+  renderIcon: Function as PropType<() => VNodeChild>,
   iconPlacement: {
     type: String as PropType<'left' | 'right'>,
     default: 'left'
@@ -77,7 +87,10 @@ const buttonProps = {
     default: true
   },
   onClick: [Function, Array] as PropType<MaybeArray<(e: MouseEvent) => void>>,
-  internalAutoFocus: Boolean
+  nativeFocusBehavior: {
+    type: Boolean,
+    default: !isSafari
+  }
 } as const
 
 export type ButtonProps = ExtractPublicPropTypes<typeof buttonProps>
@@ -95,7 +108,7 @@ const Button = defineComponent({
         ) {
           warnOnce(
             'button',
-            "`dashed`, `ghost` and `text` props can't be used along with `secondary`, `tertiary` and `quaterary` props."
+            "`dashed`, `ghost` and `text` props can't be used along with `secondary`, `tertiary` and `quaternary` props."
           )
         }
       })
@@ -103,17 +116,6 @@ const Button = defineComponent({
     const selfElRef = ref<HTMLElement | null>(null)
     const waveElRef = ref<BaseWaveRef | null>(null)
     const enterPressedRef = ref(false)
-    onMounted(() => {
-      const { value: selfEl } = selfElRef
-      if (
-        selfEl &&
-        !props.disabled &&
-        props.focusable &&
-        props.internalAutoFocus
-      ) {
-        selfEl.focus({ preventScroll: true })
-      }
-    })
     const showBorderRef = useMemo(() => {
       return (
         !props.quaternary &&
@@ -146,7 +148,15 @@ const Button = defineComponent({
       return props.focusable && !props.disabled
     })
     const handleMousedown = (e: MouseEvent): void => {
+      if (!mergedFocusableRef.value) {
+        e.preventDefault()
+      }
+      if (props.nativeFocusBehavior) {
+        return
+      }
       e.preventDefault()
+      // normally this won't be called if disabled (when tag is button)
+      // if not, we try to make it behave like a button
       if (props.disabled) {
         return
       }
@@ -164,9 +174,8 @@ const Button = defineComponent({
       }
     }
     const handleKeyup = (e: KeyboardEvent): void => {
-      switch (e.code) {
+      switch (e.key) {
         case 'Enter':
-        case 'NumpadEnter':
           if (!props.keyboard) {
             return
           }
@@ -174,9 +183,8 @@ const Button = defineComponent({
       }
     }
     const handleKeydown = (e: KeyboardEvent): void => {
-      switch (e.code) {
+      switch (e.key) {
         case 'Enter':
-        case 'NumpadEnter':
           if (!props.keyboard || props.loading) {
             e.preventDefault()
             return
@@ -187,7 +195,8 @@ const Button = defineComponent({
     const handleBlur = (): void => {
       enterPressedRef.value = false
     }
-    const { mergedClsPrefixRef, NConfigProvider } = useConfig(props)
+    const { inlineThemeDisabled, mergedClsPrefixRef, mergedRtlRef } =
+      useConfig(props)
     const themeRef = useTheme(
       'Button',
       '-button',
@@ -196,12 +205,7 @@ const Button = defineComponent({
       props,
       mergedClsPrefixRef
     )
-    const rtlEnabledRef = useRtl(
-      'Button',
-      NConfigProvider?.mergedRtlRef,
-      mergedClsPrefixRef
-    )
-    const disableInlineTheme = NConfigProvider?.disableInlineTheme
+    const rtlEnabledRef = useRtl('Button', mergedRtlRef, mergedClsPrefixRef)
     const cssVarsRef = computed(() => {
       const theme = themeRef.value
       const {
@@ -471,7 +475,7 @@ const Button = defineComponent({
         ...sizeProps
       }
     })
-    const themeClassHandle = disableInlineTheme
+    const themeClassHandle = inlineThemeDisabled
       ? useThemeClass(
         'button',
         computed(() => {
@@ -537,13 +541,21 @@ const Button = defineComponent({
           '--n-border-color-disabled': color
         }
       }),
-      cssVars: disableInlineTheme ? undefined : cssVarsRef,
-      ...themeClassHandle
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
-    const { $slots, mergedClsPrefix, tag: Component, onRender } = this
+    const { mergedClsPrefix, tag: Component, onRender } = this
     onRender?.()
+    const children = resolveWrappedSlot(
+      this.$slots.default,
+      (children) =>
+        children && (
+          <span class={`${mergedClsPrefix}-button__content`}>{children}</span>
+        )
+    )
     return (
       <Component
         ref="selfElRef"
@@ -572,47 +584,47 @@ const Button = defineComponent({
         onKeyup={this.handleKeyup}
         onKeydown={this.handleKeydown}
       >
-        {$slots.default && this.iconPlacement === 'right' ? (
-          <span class={`${mergedClsPrefix}-button__content`}>{$slots}</span>
-        ) : null}
+        {this.iconPlacement === 'right' && children}
         <NFadeInExpandTransition width>
           {{
             default: () =>
-              $slots.icon || this.loading ? (
-                <span
-                  class={`${mergedClsPrefix}-button__icon`}
-                  style={{
-                    margin: !$slots.default ? 0 : ''
-                  }}
-                >
-                  <NIconSwitchTransition>
-                    {{
-                      default: () =>
-                        this.loading ? (
-                          <NBaseLoading
-                            clsPrefix={mergedClsPrefix}
-                            key="loading"
-                            class={`${mergedClsPrefix}-icon-slot`}
-                            strokeWidth={20}
-                          />
-                        ) : (
-                          <div
-                            key="icon"
-                            class={`${mergedClsPrefix}-icon-slot`}
-                            role="none"
-                          >
-                            {$slots.icon?.()}
-                          </div>
-                        )
-                    }}
-                  </NIconSwitchTransition>
-                </span>
-              ) : null
+              resolveWrappedSlot(
+                this.$slots.icon,
+                (children) =>
+                  (this.loading || this.renderIcon || children) && (
+                    <span
+                      class={`${mergedClsPrefix}-button__icon`}
+                      style={{
+                        margin: isSlotEmpty(this.$slots.default) ? '0' : ''
+                      }}
+                    >
+                      <NIconSwitchTransition>
+                        {{
+                          default: () =>
+                            this.loading ? (
+                              <NBaseLoading
+                                clsPrefix={mergedClsPrefix}
+                                key="loading"
+                                class={`${mergedClsPrefix}-icon-slot`}
+                                strokeWidth={20}
+                              />
+                            ) : (
+                              <div
+                                key="icon"
+                                class={`${mergedClsPrefix}-icon-slot`}
+                                role="none"
+                              >
+                                {this.renderIcon ? this.renderIcon() : children}
+                              </div>
+                            )
+                        }}
+                      </NIconSwitchTransition>
+                    </span>
+                  )
+              )
           }}
         </NFadeInExpandTransition>
-        {$slots.default && this.iconPlacement === 'left' ? (
-          <span class={`${mergedClsPrefix}-button__content`}>{$slots}</span>
-        ) : null}
+        {this.iconPlacement === 'left' && children}
         {!this.text ? (
           <NBaseWave ref="waveElRef" clsPrefix={mergedClsPrefix} />
         ) : null}
@@ -635,13 +647,14 @@ const Button = defineComponent({
   }
 })
 
-type NativeButtonProps = Omit<ButtonHTMLAttributes, keyof ButtonProps>
-type MergedProps = Partial<ButtonProps & NativeButtonProps>
+type InternalButtonProps = ExtractPropTypes<typeof buttonProps>
+type NativeButtonProps = Omit<ButtonHTMLAttributes, keyof InternalButtonProps>
+type MergedProps = Partial<InternalButtonProps & NativeButtonProps>
 
 export default Button
 
 // XButton is for tsx type checking
-// It's not compitable with render function `h`
+// It's not compatible with render function `h`
 // Currently we don't expose it as public
 // If there's any issue about this, we may expose it
 // Since most people use template, the type checking phase doesn't work as tsx

@@ -1,6 +1,13 @@
 module.exports = {
-  extends: ['plugin:markdown/recommended', 'prettier'],
+  extends: ['plugin:markdown/recommended-legacy', 'prettier'],
   overrides: [
+    {
+      files: '*.mjs',
+      parserOptions: {
+        sourceType: 'module',
+        ecmaVersion: 'latest'
+      }
+    },
     {
       files: '*.vue',
       extends: [
@@ -13,6 +20,7 @@ module.exports = {
       files: ['*.vue', '*.js'],
       extends: ['plugin:vue/essential', '@vue/standard'],
       rules: {
+        'vue/multiline-html-element-content-newline': 0,
         'vue/multi-word-component-names': 0,
         'vue/max-attributes-per-line': [
           2,
@@ -31,7 +39,7 @@ module.exports = {
     },
     {
       files: ['*.ts', '*.tsx'],
-      extends: ['standard-with-typescript', 'plugin:import/typescript'],
+      extends: ['love', 'plugin:import/typescript'],
       parserOptions: {
         project: './tsconfig.json',
         ecmaFeatures: {
@@ -70,7 +78,7 @@ module.exports = {
       }
     },
     {
-      files: '*.spec.ts',
+      files: ['*.spec.ts', '*.spec.js'],
       globals: {
         describe: 'readonly',
         it: 'readonly',

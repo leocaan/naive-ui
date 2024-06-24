@@ -1,5 +1,5 @@
-import { CSSProperties, h, VNode } from 'vue'
-import { DropPosition, TreeOption } from './interface'
+import { type CSSProperties, h, type VNode } from 'vue'
+import { type DropPosition, type TreeOption } from './interface'
 
 export function renderDropMark ({
   position,
@@ -36,7 +36,7 @@ export function renderDropMark ({
     style.transform =
       position === 'before' ? 'translateY(-4px)' : 'translateY(4px)'
   }
-  return <div style={style}></div>
+  return <div style={style} />
 }
 
 export function defaultAllowDrop ({

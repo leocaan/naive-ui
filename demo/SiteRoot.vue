@@ -3,20 +3,22 @@
     :is="configProvider"
     class="demo"
     namespace="naive-ui-doc"
+    preflight-style-disabled
     :theme-name="themeName"
     :theme="theme"
     :locale="locale"
     :date-locale="dateLocale"
     :hljs="hljs"
-    disable-inline-theme
   >
     <n-theme-editor :style="themeEditorStyle">
       <n-loading-bar-provider>
         <n-message-provider>
           <n-notification-provider>
-            <n-dialog-provider>
-              <Site />
-            </n-dialog-provider>
+            <n-modal-provider>
+              <n-dialog-provider>
+                <Site />
+              </n-dialog-provider>
+            </n-modal-provider>
           </n-notification-provider>
         </n-message-provider>
       </n-loading-bar-provider>

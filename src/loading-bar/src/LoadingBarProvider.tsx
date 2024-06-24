@@ -6,14 +6,14 @@ import {
   defineComponent,
   provide,
   nextTick,
-  PropType,
-  ExtractPropTypes,
-  CSSProperties
+  type PropType,
+  type ExtractPropTypes,
+  type CSSProperties
 } from 'vue'
 import { useIsMounted } from 'vooks'
 import { useConfig, useTheme } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import { ExtractPublicPropTypes } from '../../_utils'
+import type { ExtractPublicPropTypes } from '../../_utils'
 import type { LoadingBarTheme } from '../styles'
 import NLoadingBar from './LoadingBar'
 import {
@@ -30,12 +30,14 @@ export interface LoadingBarInst {
 export type LoadingBarProviderInst = LoadingBarInst
 export type LoadingBarApiInjection = LoadingBarInst
 
-const loadingBarProps = {
+export const loadingBarProviderProps = {
   ...(useTheme.props as ThemeProps<LoadingBarTheme>),
   to: {
-    type: [String, Object] as PropType<string | HTMLElement>,
+    type: [String, Object, Boolean] as PropType<string | HTMLElement | false>,
     default: undefined
   },
+  containerClass: String,
+  containerStyle: [String, Object] as PropType<string | CSSProperties>,
   loadingBarStyle: {
     type: Object as PropType<{
       loading?: string | CSSProperties
@@ -45,16 +47,16 @@ const loadingBarProps = {
 }
 
 export type LoadingBarProviderProps = ExtractPublicPropTypes<
-  typeof loadingBarProps
+  typeof loadingBarProviderProps
 >
 
 export type LoadingBarProviderSetupProps = ExtractPropTypes<
-  typeof loadingBarProps
+  typeof loadingBarProviderProps
 >
 
 export default defineComponent({
   name: 'LoadingBarProvider',
-  props: loadingBarProps,
+  props: loadingBarProviderProps,
   setup (props) {
     const isMountedRef = useIsMounted()
     const loadingBarRef = ref<LoadingBarInst | null>(null)
@@ -100,8 +102,12 @@ export default defineComponent({
   render () {
     return (
       <>
-        <Teleport to={this.to ?? 'body'}>
-          <NLoadingBar ref="loadingBarRef" />
+        <Teleport disabled={this.to === false} to={this.to || 'body'}>
+          <NLoadingBar
+            ref="loadingBarRef"
+            containerStyle={this.containerStyle}
+            containerClass={this.containerClass}
+          />
         </Teleport>
         {this.$slots.default?.()}
       </>

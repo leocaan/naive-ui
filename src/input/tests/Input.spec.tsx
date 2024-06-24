@@ -19,18 +19,19 @@ describe('n-input', () => {
     })
     wrapper.find('input').element.value = 'cool'
     await wrapper.find('input').trigger('input')
-    expect(onUpdateValue).toHaveBeenCalledWith('cool')
+    expect(onUpdateValue).toHaveBeenCalledWith('cool', { source: 0 })
+    wrapper.unmount()
   })
 
   it('`loading` prop', async () => {
     const wrapper = mount(NInput)
     expect(wrapper.find('.n-input__suffix').exists()).toBe(false)
-    expect(wrapper.find('.n-base-loading__icon').exists()).toBe(false)
+    expect(wrapper.find('.n-base-loading__container').exists()).toBe(false)
     await wrapper.setProps({ loading: false })
     expect(wrapper.find('.n-input__suffix').exists()).toBe(true)
-    expect(wrapper.find('.n-base-loading__icon').exists()).toBe(false)
+    expect(wrapper.find('.n-base-loading__container').exists()).toBe(false)
     await wrapper.setProps({ loading: true })
-    expect(wrapper.find('.n-base-loading__icon').exists()).toBe(true)
+    expect(wrapper.find('.n-base-loading__container').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -97,8 +98,18 @@ describe('n-input', () => {
 
   it('should work with `size` prop', async () => {
     ;(['small', 'medium', 'large'] as const).forEach((size) => {
-      const wrapper = mount(NInput, { props: { size: size } })
+      const wrapper = mount(NInput, { props: { size } })
       expect(wrapper.find('.n-input').attributes('style')).toMatchSnapshot()
+      wrapper.unmount()
+    })
+  })
+
+  it('should work with `status` prop', async () => {
+    ;(['success', 'warning', 'error'] as const).forEach((status) => {
+      const wrapper = mount(NInput, { props: { status } })
+      expect(wrapper.find('.n-input').classes()).toContain(
+        `n-input--${status}-status`
+      )
       wrapper.unmount()
     })
   })
@@ -111,6 +122,25 @@ describe('n-input', () => {
     await wrapper.setProps({ type: 'textarea' })
     expect(wrapper.find('.n-input').classes()).toContain('n-input--textarea')
     expect(wrapper.find('textarea').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('should work with `show-password-on` prop', async () => {
+    let wrapper = mount(NInput, {
+      props: { type: 'password', showPasswordOn: 'click' }
+    })
+    expect(wrapper.find('input').attributes('type')).toBe('password')
+    await wrapper.find('.n-base-icon').trigger('click')
+    expect(wrapper.find('input').attributes('type')).toBe('text')
+
+    wrapper = mount(NInput, {
+      props: { type: 'password', showPasswordOn: 'mousedown' }
+    })
+    expect(wrapper.find('input').attributes('type')).toBe('password')
+    await wrapper.find('.n-base-icon').trigger('mousedown')
+    expect(wrapper.find('input').attributes('type')).toBe('text')
+
+    wrapper.unmount()
   })
 
   it('should work with `show-count` prop', async () => {
@@ -148,7 +178,7 @@ describe('n-input', () => {
   it('should work with `on-blur` prop', async () => {
     const onBlur = jest.fn()
     const wrapper = mount(NInput, {
-      props: { onBlur: onBlur }
+      props: { onBlur }
     })
     await wrapper.find('input').trigger('focus')
     await wrapper.find('input').trigger('blur')
@@ -159,7 +189,7 @@ describe('n-input', () => {
   it('should work with `on-change` prop', async () => {
     const onChange = jest.fn()
     const wrapper = mount(NInput, {
-      props: { onChange: onChange }
+      props: { onChange }
     })
     wrapper.find('input').element.focus()
     await wrapper.find('input').setValue('test')
@@ -171,7 +201,7 @@ describe('n-input', () => {
   it('should work with `on-focus` prop', async () => {
     const onFocus = jest.fn()
     const wrapper = mount(NInput, {
-      props: { onFocus: onFocus }
+      props: { onFocus }
     })
     await wrapper.find('input').trigger('focus')
     expect(onFocus).toHaveBeenCalled()
@@ -181,7 +211,7 @@ describe('n-input', () => {
   it('should work with `on-input` prop', async () => {
     const onInput = jest.fn()
     const wrapper = mount(NInput, {
-      props: { onInput: onInput }
+      props: { onInput }
     })
     wrapper.find('input').element.focus()
     await wrapper.find('input').setValue('test')
@@ -192,7 +222,7 @@ describe('n-input', () => {
   it('should work with `on-update:value` prop', async () => {
     const onUpdateValue = jest.fn()
     const wrapper = mount(NInput, {
-      props: { onUpdateValue: onUpdateValue }
+      props: { onUpdateValue }
     })
     wrapper.find('input').element.focus()
     await wrapper.find('input').setValue('test')

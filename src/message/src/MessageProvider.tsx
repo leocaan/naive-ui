@@ -6,10 +6,10 @@ import {
   Teleport,
   defineComponent,
   provide,
-  VNodeChild,
-  ExtractPropTypes,
-  PropType,
-  CSSProperties
+  type VNodeChild,
+  type ExtractPropTypes,
+  type PropType,
+  type CSSProperties
 } from 'vue'
 import { createId } from 'seemly'
 import { omit } from '../../_utils'
@@ -24,6 +24,7 @@ import { messageApiInjectionKey, messageProviderInjectionKey } from './context'
 type ContentType = string | (() => VNodeChild)
 
 export interface MessageApiInjection {
+  create: (content: ContentType, options?: MessageOptions) => MessageReactive
   info: (content: ContentType, options?: MessageOptions) => MessageReactive
   success: (content: ContentType, options?: MessageOptions) => MessageReactive
   warning: (content: ContentType, options?: MessageOptions) => MessageReactive
@@ -39,6 +40,7 @@ export interface MessageReactive {
   keepAliveOnHover?: boolean
   type: MessageType
   icon?: () => VNodeChild
+  showIcon?: boolean
   onClose?: () => void
   destroy: () => void
 }
@@ -54,7 +56,7 @@ interface PrivateMessageRef extends MessageReactive {
 
 export type MessageProviderInst = MessageApiInjection
 
-const messageProviderProps = {
+export const messageProviderProps = {
   ...(useTheme.props as ThemeProps<MessageTheme>),
   to: [String, Object] as PropType<string | HTMLElement>,
   duration: {
@@ -75,6 +77,7 @@ const messageProviderProps = {
     default: 'top'
   },
   closable: Boolean,
+  containerClass: String,
   containerStyle: [String, Object] as PropType<string | CSSProperties>
 }
 
@@ -92,8 +95,11 @@ export default defineComponent({
   setup (props) {
     const { mergedClsPrefixRef } = useConfig(props)
     const messageListRef = ref<PrivateMessageReactive[]>([])
-    const messageRefs = ref<{ [key: string]: PrivateMessageRef }>({})
+    const messageRefs = ref<Record<string, PrivateMessageRef>>({})
     const api: MessageApiInjection = {
+      create (content: ContentType, options?: MessageOptions) {
+        return create(content, { type: 'default', ...options })
+      },
       info (content: ContentType, options?: MessageOptions) {
         return create(content, { ...options, type: 'info' })
       },
@@ -126,7 +132,7 @@ export default defineComponent({
         content,
         key,
         destroy: () => {
-          messageRefs.value[key].hide()
+          messageRefs.value[key]?.hide()
         }
       })
       const { max } = props
@@ -168,7 +174,8 @@ export default defineComponent({
             <div
               class={[
                 `${this.mergedClsPrefix}-message-container`,
-                `${this.mergedClsPrefix}-message-container--${this.placement}`
+                `${this.mergedClsPrefix}-message-container--${this.placement}`,
+                this.containerClass
               ]}
               key="message-container"
               style={this.containerStyle}

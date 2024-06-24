@@ -2,17 +2,17 @@ import {
   h,
   defineComponent,
   computed,
-  PropType,
+  type PropType,
   ref,
-  CSSProperties,
+  type CSSProperties,
   toRef,
   inject,
   provide
 } from 'vue'
 import { useMergedState } from 'vooks'
-import { useConfig, useTheme } from '../../_mixins'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import { formatLength, call, warn } from '../../_utils'
+import { formatLength, call, warn, useReactivated } from '../../_utils'
 import type { MaybeArray, ExtractPublicPropTypes } from '../../_utils'
 import { NScrollbar } from '../../_internal'
 import type { ScrollbarProps, ScrollbarInst } from '../../_internal'
@@ -23,12 +23,12 @@ import ToggleButton from './ToggleButton'
 import ToggleBar from './ToggleBar'
 import {
   layoutSiderInjectionKey,
-  LayoutSiderInst,
+  type LayoutSiderInst,
   positionProp
 } from './interface'
 import { layoutInjectionKey } from './Layout'
 
-const layoutSiderProps = {
+export const layoutSiderProps = {
   position: positionProp,
   bordered: Boolean,
   collapsedWidth: {
@@ -39,6 +39,7 @@ const layoutSiderProps = {
     type: [Number, String] as PropType<string | number>,
     default: 272
   },
+  contentClass: String,
   contentStyle: {
     type: [String, Object] as PropType<string | CSSProperties>,
     default: ''
@@ -68,7 +69,9 @@ const layoutSiderProps = {
   scrollbarProps: Object as PropType<
   Partial<ScrollbarProps> & { style: CSSProperties }
   >,
+  triggerClass: String,
   triggerStyle: [String, Object] as PropType<string | CSSProperties>,
+  collapsedTriggerClass: String,
   collapsedTriggerStyle: [String, Object] as PropType<string | CSSProperties>,
   'onUpdate:collapsed': [Function, Array] as PropType<
   MaybeArray<(value: boolean) => void>
@@ -137,14 +140,17 @@ export default defineComponent({
         const { value: scrollableEl } = scrollableElRef
         if (scrollableEl) {
           if (y === undefined) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             scrollableEl.scrollTo(options as any)
           } else {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             scrollableEl.scrollTo(options as any, y as any)
           }
         }
       } else {
         const { value: scrollbarInst } = scrollbarInstRef
         if (scrollbarInst) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           scrollbarInst.scrollTo(options as any, y as any)
         }
       }
@@ -171,11 +177,28 @@ export default defineComponent({
         if (onCollapse) call(onCollapse)
       }
     }
+    let scrollX = 0
+    let scrollY = 0
+    const handleNativeElScroll = (e: Event): void => {
+      const target = e.target as HTMLElement
+      scrollX = target.scrollLeft
+      scrollY = target.scrollTop
+      props.onScroll?.(e)
+    }
+    useReactivated(() => {
+      if (props.nativeScrollbar) {
+        const el = scrollableElRef.value
+        if (el) {
+          el.scrollTop = scrollY
+          el.scrollLeft = scrollX
+        }
+      }
+    })
     provide(layoutSiderInjectionKey, {
       collapsedRef: mergedCollapsedRef,
       collapseModeRef: toRef(props, 'collapseMode')
     })
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, inlineThemeDisabled } = useConfig(props)
     const themeRef = useTheme(
       'Layout',
       '-layout-sider',
@@ -198,6 +221,48 @@ export default defineComponent({
     const exposedMethods: LayoutSiderInst = {
       scrollTo
     }
+
+    const cssVarsRef = computed(() => {
+      const {
+        common: { cubicBezierEaseInOut },
+        self
+      } = themeRef.value
+      const {
+        siderToggleButtonColor,
+        siderToggleButtonBorder,
+        siderToggleBarColor,
+        siderToggleBarColorHover
+      } = self
+      const vars: any = {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-toggle-button-color': siderToggleButtonColor,
+        '--n-toggle-button-border': siderToggleButtonBorder,
+        '--n-toggle-bar-color': siderToggleBarColor,
+        '--n-toggle-bar-color-hover': siderToggleBarColorHover
+      }
+      if (props.inverted) {
+        vars['--n-color'] = self.siderColorInverted
+        vars['--n-text-color'] = self.textColorInverted
+        vars['--n-border-color'] = self.siderBorderColorInverted
+        vars['--n-toggle-button-icon-color'] =
+          self.siderToggleButtonIconColorInverted
+        vars.__invertScrollbar = self.__invertScrollbar
+      } else {
+        vars['--n-color'] = self.siderColor
+        vars['--n-text-color'] = self.textColor
+        vars['--n-border-color'] = self.siderBorderColor
+        vars['--n-toggle-button-icon-color'] = self.siderToggleButtonIconColor
+      }
+      return vars
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'layout-sider',
+        computed(() => (props.inverted ? 'a' : 'b')),
+        cssVarsRef,
+        props
+      )
+      : undefined
     return {
       scrollableElRef,
       scrollbarInstRef,
@@ -207,50 +272,24 @@ export default defineComponent({
       mergedCollapsed: mergedCollapsedRef,
       scrollContainerStyle: scrollContainerStyleRef,
       siderPlacement: siderPlacementRef,
+      handleNativeElScroll,
       handleTransitionend,
       handleTriggerClick,
-      cssVars: computed(() => {
-        const {
-          common: { cubicBezierEaseInOut },
-          self
-        } = themeRef.value
-        const {
-          siderToggleButtonColor,
-          siderToggleButtonBorder,
-          siderToggleBarColor,
-          siderToggleBarColorHover
-        } = self
-        const vars: any = {
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-toggle-button-color': siderToggleButtonColor,
-          '--n-toggle-button-border': siderToggleButtonBorder,
-          '--n-toggle-bar-color': siderToggleBarColor,
-          '--n-toggle-bar-color-hover': siderToggleBarColorHover
-        }
-        if (props.inverted) {
-          vars['--n-color'] = self.siderColorInverted
-          vars['--n-text-color'] = self.textColorInverted
-          vars['--n-border-color'] = self.siderBorderColorInverted
-          vars['--n-toggle-button-icon-color'] =
-            self.siderToggleButtonIconColorInverted
-          vars.__invertScrollbar = self.__invertScrollbar
-        } else {
-          vars['--n-color'] = self.siderColor
-          vars['--n-text-color'] = self.textColor
-          vars['--n-border-color'] = self.siderBorderColor
-          vars['--n-toggle-button-icon-color'] = self.siderToggleButtonIconColor
-        }
-        return vars
-      }),
+      inlineThemeDisabled,
+      cssVars: cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender,
       ...exposedMethods
     }
   },
   render () {
     const { mergedClsPrefix, mergedCollapsed, showTrigger } = this
+    this.onRender?.()
     return (
       <aside
         class={[
           `${mergedClsPrefix}-layout-sider`,
+          this.themeClass,
           `${mergedClsPrefix}-layout-sider--${this.position}-positioned`,
           `${mergedClsPrefix}-layout-sider--${this.siderPlacement}-placement`,
           this.bordered && `${mergedClsPrefix}-layout-sider--bordered`,
@@ -260,7 +299,7 @@ export default defineComponent({
         ]}
         onTransitionend={this.handleTransitionend}
         style={[
-          this.cssVars,
+          this.inlineThemeDisabled ? undefined : this.cssVars,
           {
             maxWidth: this.styleMaxWidth,
             width: formatLength(this.width)
@@ -274,6 +313,7 @@ export default defineComponent({
             ref="scrollbarInstRef"
             style={this.scrollContainerStyle}
             contentStyle={this.contentStyle}
+            contentClass={this.contentClass}
             theme={this.mergedTheme.peers.Scrollbar}
             themeOverrides={this.mergedTheme.peerOverrides.Scrollbar}
             // here is a hack, since in light theme the scrollbar color is dark,
@@ -291,14 +331,17 @@ export default defineComponent({
           </NScrollbar>
         ) : (
           <div
-            class={`${mergedClsPrefix}-layout-sider-scroll-container`}
-            onScroll={this.onScroll}
+            class={[
+              `${mergedClsPrefix}-layout-sider-scroll-container`,
+              this.contentClass
+            ]}
+            onScroll={this.handleNativeElScroll}
             style={[
               this.scrollContainerStyle,
-              this.contentStyle,
               {
                 overflow: 'auto'
-              }
+              },
+              this.contentStyle
             ]}
             ref="scrollableElRef"
           >
@@ -309,6 +352,9 @@ export default defineComponent({
           showTrigger === 'bar' ? (
             <ToggleBar
               clsPrefix={mergedClsPrefix}
+              class={
+                mergedCollapsed ? this.collapsedTriggerClass : this.triggerClass
+              }
               style={
                 mergedCollapsed ? this.collapsedTriggerStyle : this.triggerStyle
               }
@@ -317,6 +363,9 @@ export default defineComponent({
           ) : (
             <ToggleButton
               clsPrefix={mergedClsPrefix}
+              class={
+                mergedCollapsed ? this.collapsedTriggerClass : this.triggerClass
+              }
               style={
                 mergedCollapsed ? this.collapsedTriggerStyle : this.triggerStyle
               }

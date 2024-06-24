@@ -3,12 +3,12 @@ import {
   inject,
   computed,
   onBeforeMount,
-  ComputedRef,
-  Ref,
-  PropType
+  type ComputedRef,
+  type Ref,
+  type PropType
 } from 'vue'
 import { merge } from 'lodash-es'
-import { CNode } from 'css-render'
+import type { CNode } from 'css-render'
 import { useSsrAdapter } from '@css-render/vue3-ssr'
 import globalStyle from '../_styles/global/index.cssr'
 import { configProviderInjectionKey } from '../config-provider/src/context'
@@ -16,7 +16,7 @@ import type { GlobalTheme } from '../config-provider'
 import type { ThemeCommonVars } from '../_styles/common'
 import { cssrAnchorMetaName } from './common'
 
-export interface Theme<N, T = {}, R = any> {
+export interface Theme<N, T = Record<string, unknown>, R = any> {
   name: N
   common?: ThemeCommonVars
   peers?: R
@@ -35,33 +35,32 @@ export interface ThemePropsReactive<T> {
   builtinThemeOverrides?: ExtractThemeOverrides<T>
 }
 
-export type ExtractThemeVars<T> = T extends Theme<unknown, infer U, unknown>
-  ? unknown extends U // self is undefined, ThemeVars is unknown
-    ? {}
-    : U
-  : {}
+export type ExtractThemeVars<T> =
+  T extends Theme<unknown, infer U, unknown>
+    ? unknown extends U // self is undefined, ThemeVars is unknown
+      ? Record<string, unknown>
+      : U
+    : Record<string, unknown>
 
-export type ExtractPeerOverrides<T> = T extends Theme<unknown, unknown, infer V>
-  ? {
-      peers?: {
-        [k in keyof V]?: ExtractThemeOverrides<V[k]>
+export type ExtractPeerOverrides<T> =
+  T extends Theme<unknown, unknown, infer V>
+    ? {
+        peers?: {
+          [k in keyof V]?: ExtractThemeOverrides<V[k]>
+        }
       }
-    }
-  : T
+    : T
 
 // V is peers theme
-export type ExtractMergedPeerOverrides<T> = T extends Theme<
-unknown,
-unknown,
-infer V
->
-  ? {
-      [k in keyof V]?: ExtractPeerOverrides<V[k]>
-    }
-  : T
+export type ExtractMergedPeerOverrides<T> =
+  T extends Theme<unknown, unknown, infer V>
+    ? {
+        [k in keyof V]?: ExtractPeerOverrides<V[k]>
+      }
+    : T
 
 export type ExtractThemeOverrides<T> = Partial<ExtractThemeVars<T>> &
-ExtractPeerOverrides<T> & { common?: ThemeCommonVars }
+ExtractPeerOverrides<T> & { common?: Partial<ThemeCommonVars> }
 
 export function createTheme<N extends string, T, R> (
   theme: Theme<N, T, R>
@@ -75,14 +74,15 @@ type UseThemeProps<T> = Readonly<{
   builtinThemeOverrides?: ExtractThemeOverrides<T>
 }>
 
-export type MergedTheme<T> = T extends Theme<unknown, infer V, infer W>
-  ? {
-      common: ThemeCommonVars
-      self: V
-      peers: W
-      peerOverrides: ExtractMergedPeerOverrides<T>
-    }
-  : T
+export type MergedTheme<T> =
+  T extends Theme<unknown, infer V, infer W>
+    ? {
+        common: ThemeCommonVars
+        self: V
+        peers: W
+        peerOverrides: ExtractMergedPeerOverrides<T>
+      }
+    : T
 
 function useTheme<N, T, R> (
   resolveId: Exclude<keyof GlobalTheme, 'common' | 'name'>,
@@ -90,9 +90,10 @@ function useTheme<N, T, R> (
   style: CNode | undefined,
   defaultTheme: Theme<N, T, R>,
   props: UseThemeProps<Theme<N, T, R>>,
-  clsPrefixRef?: Ref<string | undefined>
+  clsPrefixRef: Ref<string | undefined> | undefined
 ): ComputedRef<MergedTheme<Theme<N, T, R>>> {
   const ssrAdapter = useSsrAdapter()
+  const NConfigProvider = inject(configProviderInjectionKey, null)
   if (style) {
     const mountStyle = (): void => {
       const clsPrefix = clsPrefixRef?.value
@@ -105,12 +106,14 @@ function useTheme<N, T, R> (
         anchorMetaName: cssrAnchorMetaName,
         ssr: ssrAdapter
       })
-      globalStyle.mount({
-        id: 'n-global',
-        head: true,
-        anchorMetaName: cssrAnchorMetaName,
-        ssr: ssrAdapter
-      })
+      if (!NConfigProvider?.preflightStyleDisabled) {
+        globalStyle.mount({
+          id: 'n-global',
+          head: true,
+          anchorMetaName: cssrAnchorMetaName,
+          ssr: ssrAdapter
+        })
+      }
     }
     if (ssrAdapter) {
       mountStyle()
@@ -118,7 +121,6 @@ function useTheme<N, T, R> (
       onBeforeMount(mountStyle)
     }
   }
-  const NConfigProvider = inject(configProviderInjectionKey, null)
   const mergedThemeRef = computed(() => {
     // keep props to make theme overrideable
     const {
@@ -165,7 +167,12 @@ function useTheme<N, T, R> (
       common: mergedCommon,
       self: mergedSelf,
       peers: merge({}, defaultTheme.peers, globalPeers, peers),
-      peerOverrides: merge({}, globalPeersOverrides, peersOverrides)
+      peerOverrides: merge(
+        {},
+        builtinOverrides.peers,
+        globalPeersOverrides,
+        peersOverrides
+      )
     }
   })
   return mergedThemeRef

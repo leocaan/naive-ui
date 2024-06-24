@@ -1,7 +1,7 @@
 import { commonLight } from '../../_styles/common'
 import type { ThemeCommonVars } from '../../_styles/common'
 import commonVariables from './_common'
-import { Theme } from '../../_mixins'
+import { type Theme } from '../../_mixins'
 
 export const self = (vars: ThemeCommonVars) => {
   const {
@@ -14,7 +14,9 @@ export const self = (vars: ThemeCommonVars) => {
     textColor1,
     dividerColor,
     fontWeightStrong,
-    closeColor,
+    closeIconColor,
+    closeIconColorHover,
+    closeIconColorPressed,
     closeColorHover,
     closeColorPressed,
     modalColor,
@@ -30,14 +32,19 @@ export const self = (vars: ThemeCommonVars) => {
     colorPopover: popoverColor,
     colorTarget: primaryColor,
     colorEmbedded: actionColor,
+    colorEmbeddedModal: actionColor,
+    colorEmbeddedPopover: actionColor,
     textColor: textColor2,
     titleTextColor: textColor1,
     borderColor: dividerColor,
-    actionColor: actionColor,
+    actionColor,
     titleFontWeight: fontWeightStrong,
-    closeColor: closeColor,
-    closeColorHover: closeColorHover,
-    closeColorPressed: closeColorPressed,
+    closeColorHover,
+    closeColorPressed,
+    closeBorderRadius: borderRadius,
+    closeIconColor,
+    closeIconColorHover,
+    closeIconColorPressed,
     fontSizeSmall: fontSize,
     fontSizeMedium: fontSize,
     fontSizeLarge: fontSize,

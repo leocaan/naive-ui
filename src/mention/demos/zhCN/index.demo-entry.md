@@ -5,14 +5,15 @@
 ## 演示
 
 ```demo
-basic
-textarea
-async
-autosize
-form
-render-label
-custom-prefix
-manual-trigger
+basic.vue
+textarea.vue
+async.vue
+autosize.vue
+form.vue
+render-label.vue
+custom-prefix.vue
+manual-trigger.vue
+status.vue
 ```
 
 ## API
@@ -29,14 +30,18 @@ Mention 在 `v2.2.0` 及以后可用。
 | separator | `string` | `' '` | 切分提及使用的字符，长度必须为 1 |  |
 | bordered | `boolean` | `true` | 是否显示输入框边框 |  |
 | disabled | `boolean` | `false` | 是否设置输入框为禁用状态 |  |
-| value | `string \| null` | `undefined` | 输入框的值 |  |
 | default-value | `string` | `''` | 输入框的默认值 |  |
+| filter | `(pattern: string, option: MentionOption) => boolean` | 内置的过滤函数 | 根据 `pattern` 决定显示那些选项的过滤函数 | 2.38.2 |
 | loading | `boolean` | `false` | 选择面板是否显示加载状态 |  |
 | prefix | `string \| string[]` | `'@'` | 触发提及的前缀，长度必须为 1 |  |
 | placeholder | `string` | `''` | 输入框的占位符 |  |
 | placement | `'top-start' \| 'top' \| 'top-end' \| 'right-start' \| 'right' \| 'right-end' \| 'bottom-start' \| 'bottom' \| 'bottom-end' \| 'left-start' \| 'left' \| 'left-end'` | `'bottom-start'` | 选择面板的弹出位置. | 2.25.0 |
 | render-label | `(option: MentionOption) => VNodeChild` | `undefined` | 选项标签渲染函数 |  |
 | size | `'small' \| 'medium' \| 'large'` | `'medium'` | 输入框的大小 |  |
+| status | `'success' \| 'warning' \| 'error'` | `undefined` | 验证状态 | 2.27.0 |
+| to | `string \| HTMLElement \| false` | `body` | 菜单的容器节点，`false` 会待在原地 |  |
+| value | `string \| null` | `undefined` | 输入框的值 |  |
+| on-update:show | `(show: boolean) => void` | `undefined` | 选择面板显示状态发生变化时触发 | 2.34.0 |
 | on-update:value | `(value: string) => void` | `undefined` | 输入框值发生更新时触发 |  |
 | on-select | `(option: MentionOption, prefix: string) => void` | `undefined` | 输入框的选中时触发 |  |
 | on-focus | `(e: FocusEvent) => void` | `undefined` | 输入框获得焦点时触发 |  |
@@ -56,10 +61,10 @@ Mention 在 `v2.2.0` 及以后可用。
 
 ### Mention Methods
 
-| Name  | Type         | Description                   |
-| ----- | ------------ | ----------------------------- |
-| focus | `() => void` | Manually focus the component. |
-| blur  | `() => void` | Manually blur the component.  |
+| Name  | Type         | Description |
+| ----- | ------------ | ----------- |
+| focus | `() => void` | 聚焦        |
+| blur  | `() => void` | 失焦        |
 
 ### Mention Slots
 

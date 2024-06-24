@@ -5,10 +5,10 @@ It doesn't look like what it calls.
 ## Demos
 
 ```demo
-basic
-custom
-separator
-separator-per-item
+basic.vue
+custom.vue
+separator.vue
+separator-per-item.vue
 ```
 
 ## API
@@ -21,10 +21,11 @@ separator-per-item
 
 ### BreadcrumbItem Props
 
-| Name      | Type     | Default     | Description               |
-| --------- | -------- | ----------- | ------------------------- |
-| separator | `string` | `undefined` | BreadcrumbItem separator. |
-| href      | `string` | `undefined` | BreadcrumbItem link.      |
+| Name      | Type      | Default     | Description               | Version |
+| --------- | --------- | ----------- | ------------------------- | ------- |
+| clickable | `boolean` | `true`      | Whether it's clickable.   | 2.30.0  |
+| separator | `string`  | `undefined` | BreadcrumbItem separator. |         |
+| href      | `string`  | `undefined` | BreadcrumbItem link.      |         |
 
 ### Breadcrumb Slots
 

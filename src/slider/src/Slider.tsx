@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/space-before-function-paren */
 import {
   h,
   ref,
@@ -7,32 +8,38 @@ import {
   nextTick,
   defineComponent,
   Transition,
-  PropType,
-  CSSProperties,
-  ComponentPublicInstance
+  type PropType,
+  type CSSProperties,
+  type ComponentPublicInstance,
+  onBeforeUnmount
 } from 'vue'
 import {
   VBinder,
   VTarget,
   VFollower,
-  FollowerPlacement,
-  FollowerInst as _FollowerInst
+  type FollowerPlacement,
+  type FollowerInst
 } from 'vueuc'
 import { useIsMounted, useMergedState } from 'vooks'
 import { on, off } from 'evtd'
-import { useTheme, useFormItem, useConfig, ThemeProps } from '../../_mixins'
+import {
+  useTheme,
+  useFormItem,
+  useConfig,
+  type ThemeProps,
+  useThemeClass
+} from '../../_mixins'
 import {
   call,
   useAdjustedTo,
-  MaybeArray,
-  ExtractPublicPropTypes
+  type MaybeArray,
+  type ExtractPublicPropTypes,
+  resolveSlot
 } from '../../_utils'
-import { sliderLight, SliderTheme } from '../styles'
-import { OnUpdateValueImpl } from './interface'
+import { sliderLight, type SliderTheme } from '../styles'
+import { type OnUpdateValueImpl } from './interface'
 import { isTouchEvent, useRefs } from './utils'
 import style from './styles/index.cssr'
-
-interface FollowerInst extends _FollowerInst, ComponentPublicInstance {}
 
 export interface ClosestMark {
   value: number
@@ -43,7 +50,7 @@ export interface ClosestMark {
 // ref: https://developer.mozilla.org/zh-CN/docs/Web/API/MouseEvent/button
 const eventButtonLeft = 0
 
-const sliderProps = {
+export const sliderProps = {
   ...(useTheme.props as ThemeProps<SliderTheme>),
   to: useAdjustedTo.propTo,
   defaultValue: {
@@ -56,6 +63,10 @@ const sliderProps = {
     default: undefined
   },
   formatTooltip: Function as PropType<(value: number) => string | number>,
+  keyboard: {
+    type: Boolean,
+    default: true
+  },
   min: {
     type: Number,
     default: 0
@@ -86,7 +97,9 @@ const sliderProps = {
   >,
   onUpdateValue: [Function, Array] as PropType<
   MaybeArray<(value: number & number[]) => void>
-  >
+  >,
+  onDragstart: [Function] as PropType<() => void>,
+  onDragend: [Function] as PropType<() => void>
 } as const
 
 export type SliderProps = ExtractPublicPropTypes<typeof sliderProps>
@@ -94,8 +107,9 @@ export type SliderProps = ExtractPublicPropTypes<typeof sliderProps>
 export default defineComponent({
   name: 'Slider',
   props: sliderProps,
-  setup (props) {
-    const { mergedClsPrefixRef, namespaceRef } = useConfig(props)
+  setup(props) {
+    const { mergedClsPrefixRef, namespaceRef, inlineThemeDisabled } =
+      useConfig(props)
     const themeRef = useTheme(
       'Slider',
       '-slider',
@@ -108,7 +122,9 @@ export default defineComponent({
     // dom ref
     const handleRailRef = ref<HTMLElement | null>(null)
     const [handleRefs, setHandleRefs] = useRefs<HTMLElement>()
-    const [followerRefs, setFollowerRefs] = useRefs<FollowerInst>()
+    const [followerRefs, setFollowerRefs] = useRefs<
+    FollowerInst & ComponentPublicInstance
+    >()
     const followerEnabledIndexSetRef = ref<Set<number>>(new Set())
 
     // data ref
@@ -116,7 +132,7 @@ export default defineComponent({
     const { mergedDisabledRef } = formItem
     const precisionRef = computed(() => {
       const { step } = props
-      if (step <= 0 || step === 'mark') return 0
+      if (Number(step) <= 0 || step === 'mark') return 0
       const stepString = step.toString()
       let precision = 0
       if (stepString.includes('.')) {
@@ -219,7 +235,7 @@ export default defineComponent({
       return mergedMarks
     })
 
-    function getHandleStyle (value: number, index: number): Record<string, any> {
+    function getHandleStyle(value: number, index: number): Record<string, any> {
       const percentage = valueToPercentage(value)
       const { value: styleDirection } = styleDirectionRef
       return {
@@ -227,30 +243,31 @@ export default defineComponent({
         zIndex: index === activeIndexRef.value ? 1 : 0
       }
     }
-    function isShowTooltip (index: number): boolean {
+    function isShowTooltip(index: number): boolean {
       return (
         props.showTooltip ||
         hoverIndexRef.value === index ||
         (activeIndexRef.value === index && draggingRef.value)
       )
     }
-    function isSkipCSSDetection (index: number): boolean {
+    function shouldKeepTooltipTransition(index: number): boolean {
+      if (!draggingRef.value) return true
       return !(
         activeIndexRef.value === index && previousIndexRef.value === index
       )
     }
-    function focusActiveHandle (index: number): void {
+    function focusActiveHandle(index: number): void {
       if (~index) {
         activeIndexRef.value = index
-        handleRefs.value.get(index)?.focus()
+        handleRefs.get(index)?.focus()
       }
     }
-    function syncPosition (): void {
-      followerRefs.value.forEach((inst, index) => {
+    function syncPosition(): void {
+      followerRefs.forEach((inst, index) => {
         if (isShowTooltip(index)) inst.syncPosition()
       })
     }
-    function doUpdateValue (value: number | number[]): void {
+    function doUpdateValue(value: number | number[]): void {
       const { 'onUpdate:value': _onUpdateValue, onUpdateValue } = props
       const { nTriggerFormInput, nTriggerFormChange } = formItem
       if (onUpdateValue) call(onUpdateValue as OnUpdateValueImpl, value)
@@ -259,7 +276,7 @@ export default defineComponent({
       nTriggerFormInput()
       nTriggerFormChange()
     }
-    function dispatchValueUpdate (value: number | number[]): void {
+    function dispatchValueUpdate(value: number | number[]): void {
       const { range } = props
       if (range) {
         if (Array.isArray(value)) {
@@ -275,7 +292,7 @@ export default defineComponent({
         }
       }
     }
-    function doDispatchValue (value: number, index: number): void {
+    function doDispatchValue(value: number, index: number): void {
       if (props.range) {
         const values = arrifiedValueRef.value.slice()
         values.splice(index, 1, value)
@@ -286,7 +303,7 @@ export default defineComponent({
     }
 
     // value conversion
-    function sanitizeValue (
+    function sanitizeValue(
       value: number,
       currentValue: number,
       stepBuffer?: number
@@ -330,29 +347,29 @@ export default defineComponent({
       }
       return closestMark ? clampValue(closestMark.value) : currentValue
     }
-    function clampValue (value: number): number {
+    function clampValue(value: number): number {
       return Math.min(props.max, Math.max(props.min, value))
     }
-    function valueToPercentage (value: number): number {
+    function valueToPercentage(value: number): number {
       const { max, min } = props
       return ((value - min) / (max - min)) * 100
     }
-    function percentageToValue (percentage: number): number {
+    function percentageToValue(percentage: number): number {
       const { max, min } = props
       return min + (max - min) * percentage
     }
-    function getRoundValue (value: number): number {
+    function getRoundValue(value: number): number {
       const { step, min } = props
-      if (step <= 0 || step === 'mark') return value
+      if (Number(step) <= 0 || step === 'mark') return value
       const newValue = Math.round((value - min) / step) * step + min
       return Number(newValue.toFixed(precisionRef.value))
     }
-    function getClosestMark (
+    function getClosestMark(
       currentValue: number,
       markValues = markValuesRef.value,
       buffer?: number
     ): ClosestMark | null {
-      if (!markValues || !markValues.length) return null
+      if (!markValues?.length) return null
       let closestMark: ClosestMark | null = null
       let index = -1
       while (++index < markValues.length) {
@@ -372,7 +389,7 @@ export default defineComponent({
       }
       return closestMark
     }
-    function getPointValue (event: MouseEvent | TouchEvent): number | undefined {
+    function getPointValue(event: MouseEvent | TouchEvent): number | undefined {
       const railEl = handleRailRef.value
       if (!railEl) return
       const touchEvent = isTouchEvent(event) ? event.touches[0] : event
@@ -390,10 +407,10 @@ export default defineComponent({
     }
 
     // dom event handle
-    function handleRailKeyDown (e: KeyboardEvent): void {
-      if (mergedDisabledRef.value) return
+    function handleRailKeyDown(e: KeyboardEvent): void {
+      if (mergedDisabledRef.value || !props.keyboard) return
       const { vertical, reverse } = props
-      switch (e.code) {
+      switch (e.key) {
         case 'ArrowUp':
           e.preventDefault()
           handleStepValue(vertical && reverse ? -1 : 1)
@@ -412,13 +429,13 @@ export default defineComponent({
           break
       }
     }
-    function handleStepValue (ratio: number): void {
+    function handleStepValue(ratio: number): void {
       const activeIndex = activeIndexRef.value
       if (activeIndex === -1) return
       const { step } = props
       const currentValue = arrifiedValueRef.value[activeIndex]
       const nextValue =
-        step <= 0 || step === 'mark'
+        Number(step) <= 0 || step === 'mark'
           ? currentValue
           : currentValue + step * ratio
       doDispatchValue(
@@ -427,7 +444,7 @@ export default defineComponent({
         activeIndex
       )
     }
-    function handleRailMouseDown (event: MouseEvent | TouchEvent): void {
+    function handleRailMouseDown(event: MouseEvent | TouchEvent): void {
       if (mergedDisabledRef.value) return
       if (!isTouchEvent(event) && event.button !== eventButtonLeft) {
         return
@@ -449,47 +466,50 @@ export default defineComponent({
         )
       }
     }
-    function startDragging (): void {
+    function startDragging(): void {
       if (!draggingRef.value) {
         draggingRef.value = true
+        if (props.onDragstart) call(props.onDragstart)
         on('touchend', document, handleMouseUp)
         on('mouseup', document, handleMouseUp)
         on('touchmove', document, handleMouseMove)
         on('mousemove', document, handleMouseMove)
       }
     }
-    function stopDragging (): void {
+    function stopDragging(): void {
       if (draggingRef.value) {
         draggingRef.value = false
+        if (props.onDragend) call(props.onDragend)
         off('touchend', document, handleMouseUp)
         off('mouseup', document, handleMouseUp)
         off('touchmove', document, handleMouseMove)
         off('mousemove', document, handleMouseMove)
       }
     }
-    function handleMouseMove (event: MouseEvent | TouchEvent): void {
+    function handleMouseMove(event: MouseEvent | TouchEvent): void {
       const { value: activeIndex } = activeIndexRef
       if (!draggingRef.value || activeIndex === -1) {
         stopDragging()
         return
       }
-      const pointValue = getPointValue(event) as number
+      const pointValue = getPointValue(event)
+      if (pointValue === undefined) return
       doDispatchValue(
         sanitizeValue(pointValue, arrifiedValueRef.value[activeIndex]),
         activeIndex
       )
     }
-    function handleMouseUp (): void {
+    function handleMouseUp(): void {
       stopDragging()
     }
-    function handleHandleFocus (index: number): void {
+    function handleHandleFocus(index: number): void {
       activeIndexRef.value = index
       // Wake focus style
       if (!mergedDisabledRef.value) {
         hoverIndexRef.value = index
       }
     }
-    function handleHandleBlur (index: number): void {
+    function handleHandleBlur(index: number): void {
       if (activeIndexRef.value === index) {
         activeIndexRef.value = -1
         stopDragging()
@@ -498,10 +518,10 @@ export default defineComponent({
         hoverIndexRef.value = -1
       }
     }
-    function handleHandleMouseEnter (index: number): void {
+    function handleHandleMouseEnter(index: number): void {
       hoverIndexRef.value = index
     }
-    function handleHandleMouseLeave (index: number): void {
+    function handleHandleMouseLeave(index: number): void {
       if (hoverIndexRef.value === index) {
         hoverIndexRef.value = -1
       }
@@ -520,6 +540,91 @@ export default defineComponent({
       }
       void nextTick(syncPosition)
     })
+    onBeforeUnmount(() => {
+      stopDragging()
+    })
+    const cssVarsRef = computed(() => {
+      const {
+        self: {
+          markFontSize,
+          railColor,
+          railColorHover,
+          fillColor,
+          fillColorHover,
+          handleColor,
+          opacityDisabled,
+          dotColor,
+          dotColorModal,
+          handleBoxShadow,
+          handleBoxShadowHover,
+          handleBoxShadowActive,
+          handleBoxShadowFocus,
+          dotBorder,
+          dotBoxShadow,
+          railHeight,
+          railWidthVertical,
+          handleSize,
+          dotHeight,
+          dotWidth,
+          dotBorderRadius,
+          fontSize,
+          dotBorderActive,
+          dotColorPopover
+        },
+        common: { cubicBezierEaseInOut }
+      } = themeRef.value
+      return {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-dot-border': dotBorder,
+        '--n-dot-border-active': dotBorderActive,
+        '--n-dot-border-radius': dotBorderRadius,
+        '--n-dot-box-shadow': dotBoxShadow,
+        '--n-dot-color': dotColor,
+        '--n-dot-color-modal': dotColorModal,
+        '--n-dot-color-popover': dotColorPopover,
+        '--n-dot-height': dotHeight,
+        '--n-dot-width': dotWidth,
+        '--n-fill-color': fillColor,
+        '--n-fill-color-hover': fillColorHover,
+        '--n-font-size': fontSize,
+        '--n-handle-box-shadow': handleBoxShadow,
+        '--n-handle-box-shadow-active': handleBoxShadowActive,
+        '--n-handle-box-shadow-focus': handleBoxShadowFocus,
+        '--n-handle-box-shadow-hover': handleBoxShadowHover,
+        '--n-handle-color': handleColor,
+        '--n-handle-size': handleSize,
+        '--n-opacity-disabled': opacityDisabled,
+        '--n-rail-color': railColor,
+        '--n-rail-color-hover': railColorHover,
+        '--n-rail-height': railHeight,
+        '--n-rail-width-vertical': railWidthVertical,
+        '--n-mark-font-size': markFontSize
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('slider', undefined, cssVarsRef, props)
+      : undefined
+    const indicatorCssVarsRef = computed(() => {
+      const {
+        self: {
+          fontSize,
+          indicatorColor,
+          indicatorBoxShadow,
+          indicatorTextColor,
+          indicatorBorderRadius
+        }
+      } = themeRef.value
+      return {
+        '--n-font-size': fontSize,
+        '--n-indicator-border-radius': indicatorBorderRadius,
+        '--n-indicator-box-shadow': indicatorBoxShadow,
+        '--n-indicator-color': indicatorColor,
+        '--n-indicator-text-color': indicatorTextColor
+      }
+    })
+    const indicatorThemeClassHandle = inlineThemeDisabled
+      ? useThemeClass('slider-indicator', undefined, indicatorCssVarsRef, props)
+      : undefined
 
     return {
       mergedClsPrefix: mergedClsPrefixRef,
@@ -533,7 +638,7 @@ export default defineComponent({
       dotTransitionDisabled: dotTransitionDisabledRef,
       markInfos: markInfosRef,
       isShowTooltip,
-      isSkipCSSDetection,
+      shouldKeepTooltipTransition,
       handleRailRef,
       setHandleRefs,
       setFollowerRefs,
@@ -548,88 +653,22 @@ export default defineComponent({
       handleHandleMouseEnter,
       handleHandleMouseLeave,
       handleRailKeyDown,
-      indicatorCssVars: computed(() => {
-        const {
-          self: {
-            fontSize,
-            indicatorColor,
-            indicatorBoxShadow,
-            indicatorTextColor,
-            indicatorBorderRadius
-          }
-        } = themeRef.value
-        return {
-          '--n-font-size': fontSize,
-          '--n-indicator-border-radius': indicatorBorderRadius,
-          '--n-indicator-box-shadow': indicatorBoxShadow,
-          '--n-indicator-color': indicatorColor,
-          '--n-indicator-text-color': indicatorTextColor
-        }
-      }),
-      cssVars: computed(() => {
-        const {
-          self: {
-            railColor,
-            railColorHover,
-            fillColor,
-            fillColorHover,
-            handleColor,
-            opacityDisabled,
-            dotColor,
-            dotColorModal,
-            handleBoxShadow,
-            handleBoxShadowHover,
-            handleBoxShadowActive,
-            handleBoxShadowFocus,
-            dotBorder,
-            dotBoxShadow,
-            railHeight,
-            railWidthVertical,
-            handleSize,
-            dotHeight,
-            dotWidth,
-            dotBorderRadius,
-            fontSize,
-            dotBorderActive,
-            dotColorPopover
-          },
-          common: { cubicBezierEaseInOut }
-        } = themeRef.value
-        return {
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-dot-border': dotBorder,
-          '--n-dot-border-active': dotBorderActive,
-          '--n-dot-border-radius': dotBorderRadius,
-          '--n-dot-box-shadow': dotBoxShadow,
-          '--n-dot-color': dotColor,
-          '--n-dot-color-modal': dotColorModal,
-          '--n-dot-color-popover': dotColorPopover,
-          '--n-dot-height': dotHeight,
-          '--n-dot-width': dotWidth,
-          '--n-fill-color': fillColor,
-          '--n-fill-color-hover': fillColorHover,
-          '--n-font-size': fontSize,
-          '--n-handle-box-shadow': handleBoxShadow,
-          '--n-handle-box-shadow-active': handleBoxShadowActive,
-          '--n-handle-box-shadow-focus': handleBoxShadowFocus,
-          '--n-handle-box-shadow-hover': handleBoxShadowHover,
-          '--n-handle-color': handleColor,
-          '--n-handle-size': handleSize,
-          '--n-opacity-disabled': opacityDisabled,
-          '--n-rail-color': railColor,
-          '--n-rail-color-hover': railColorHover,
-          '--n-rail-height': railHeight,
-          '--n-rail-width-vertical': railWidthVertical
-        }
-      })
+      indicatorCssVars: inlineThemeDisabled ? undefined : indicatorCssVarsRef,
+      indicatorThemeClass: indicatorThemeClassHandle?.themeClass,
+      indicatorOnRender: indicatorThemeClassHandle?.onRender,
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
-  render () {
-    const { mergedClsPrefix, formatTooltip } = this
+  render() {
+    const { mergedClsPrefix, themeClass, formatTooltip } = this
+    this.onRender?.()
     return (
       <div
         class={[
           `${mergedClsPrefix}-slider`,
+          themeClass,
           {
             [`${mergedClsPrefix}-slider--disabled`]: this.mergedDisabled,
             [`${mergedClsPrefix}-slider--active`]: this.activeIndex !== -1,
@@ -652,10 +691,8 @@ export default defineComponent({
             <div
               class={[
                 `${mergedClsPrefix}-slider-dots`,
-                {
-                  [`${mergedClsPrefix}-slider-dots--transition-disabled`]:
-                    this.dotTransitionDisabled
-                }
+                this.dotTransitionDisabled &&
+                  `${mergedClsPrefix}-slider-dots--transition-disabled`
               ]}
             >
               {this.markInfos.map((mark) => (
@@ -684,18 +721,36 @@ export default defineComponent({
                           default: () => (
                             <div
                               ref={this.setHandleRefs(index)}
-                              class={`${mergedClsPrefix}-slider-handle`}
+                              class={`${mergedClsPrefix}-slider-handle-wrapper`}
                               tabindex={this.mergedDisabled ? -1 : 0}
+                              role="slider"
+                              aria-valuenow={value}
+                              aria-valuemin={this.min}
+                              aria-valuemax={this.max}
+                              aria-orientation={
+                                this.vertical ? 'vertical' : 'horizontal'
+                              }
+                              aria-disabled={this.disabled}
                               style={this.getHandleStyle(value, index)}
-                              onFocus={() => this.handleHandleFocus(index)}
-                              onBlur={() => this.handleHandleBlur(index)}
-                              onMouseenter={() =>
+                              onFocus={() => {
+                                this.handleHandleFocus(index)
+                              }}
+                              onBlur={() => {
+                                this.handleHandleBlur(index)
+                              }}
+                              onMouseenter={() => {
                                 this.handleHandleMouseEnter(index)
-                              }
-                              onMouseleave={() =>
+                              }}
+                              onMouseleave={() => {
                                 this.handleHandleMouseLeave(index)
-                              }
-                            />
+                              }}
+                            >
+                              {resolveSlot(this.$slots.thumb, () => [
+                                <div
+                                  class={`${mergedClsPrefix}-slider-handle`}
+                                />
+                              ])}
+                            </div>
                           )
                         }}
                       </VTarget>,
@@ -719,31 +774,38 @@ export default defineComponent({
                               <Transition
                                 name="fade-in-scale-up-transition"
                                 appear={this.isMounted}
-                                css={this.isSkipCSSDetection(index)}
-                                onEnter={() =>
+                                css={this.shouldKeepTooltipTransition(index)}
+                                onEnter={() => {
                                   this.followerEnabledIndexSet.add(index)
-                                }
-                                onAfterLeave={() =>
+                                }}
+                                onAfterLeave={() => {
                                   this.followerEnabledIndexSet.delete(index)
-                                }
+                                }}
                               >
                                 {{
-                                  default: () =>
-                                    showTooltip ? (
-                                      <div
-                                        class={[
-                                          `${mergedClsPrefix}-slider-handle-indicator`,
-                                          `${mergedClsPrefix}-slider-handle-indicator--${this.mergedPlacement}`
-                                        ]}
-                                        style={
-                                          this.indicatorCssVars as CSSProperties
-                                        }
-                                      >
-                                        {typeof formatTooltip === 'function'
-                                          ? formatTooltip(value)
-                                          : value}
-                                      </div>
-                                    ) : null
+                                  default: () => {
+                                    if (showTooltip) {
+                                      this.indicatorOnRender?.()
+                                      return (
+                                        <div
+                                          class={[
+                                            `${mergedClsPrefix}-slider-handle-indicator`,
+                                            this.indicatorThemeClass,
+                                            `${mergedClsPrefix}-slider-handle-indicator--${this.mergedPlacement}`
+                                          ]}
+                                          style={
+                                            this
+                                              .indicatorCssVars as CSSProperties
+                                          }
+                                        >
+                                          {typeof formatTooltip === 'function'
+                                            ? formatTooltip(value)
+                                            : value}
+                                        </div>
+                                      )
+                                    }
+                                    return null
+                                  }
                                 }}
                               </Transition>
                             )

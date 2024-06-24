@@ -5,17 +5,18 @@ As far as I know, it is always used as a volume control.
 ## Demos
 
 ```demo
-basic
-range
-mark
-restrict-selectable-values
-disabled
-disable-tooltip
-format
-reverse
-vertical
+basic.vue
+range.vue
+mark.vue
+restrict-selectable-values.vue
+disabled.vue
+disable-tooltip.vue
+format.vue
+reverse.vue
+vertical.vue
 show-tooltip.vue
-multiple-debug
+multiple-debug.vue
+custom-thumb.vue
 ```
 
 ## API
@@ -27,6 +28,7 @@ multiple-debug
 | default-value | `number \| [number, number] \| null` | `null` | Default value. |  |
 | disabled | `boolean` | `false` | Whether the slider is disabled. |  |
 | format-tooltip | `(value: number) => string \| number` | `undefined` | Format tooltip. |  |
+| keyboard | `boolean` | `true` | Whether the slider can be controlled keyboard. | 2.33.0 |
 | marks | `{ [markValue: number]: string }` | `undefined` | Marks of the slider. |  |
 | max | `number` | `100` | Max value of the slider. |  |
 | min | `number` | `0` | Min value of the slider. |  |
@@ -39,3 +41,11 @@ multiple-debug
 | vertical | `boolean` | `false` | Whether to enable vertical mode. |  |
 | value | `number \| [number, number] \| null` | `undefined` | Value of the slider. |  |
 | on-update:value | `(value: number \| [number, number]) => void` | `undefined` | Callback on value update. |  |
+| on-dragstart | `() => void` | `undefined` | Callback function of dragging start. | 2.36.0 |
+| on-dragend | `() => void` | `undefined` | Callback function of dragging end. | 2.36.0 |
+
+### Slider Slots
+
+| Name  | Parameters | Description          | Version |
+| ----- | ---------- | -------------------- | ------- |
+| thumb | `()`       | Thumb of the slider. | 2.30.4  |

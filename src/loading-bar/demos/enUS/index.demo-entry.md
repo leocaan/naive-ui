@@ -3,8 +3,8 @@
 A kind of good placebo for anxiety.
 
 <n-space vertical size="large">
-<n-alert title="Prerequisite" type="warning">
-  If you want use loading bar, you need to wrap the component where you call related methods inside <n-text code>n-loading-bar-provider</n-text> and inject <n-text code>loadingBar</n-text>.
+<n-alert title="Prerequisite" type="warning" :bordered="false">
+  If you want to use loading bar, you need to wrap the component where you call related methods inside <n-text code>n-loading-bar-provider</n-text> and inject <n-text code>loadingBar</n-text>.
 </n-alert>
 For example:
 
@@ -37,18 +37,22 @@ export default defineComponent({
 ## Demos
 
 ```demo
-basic
+basic.vue
+container.vue
 ```
 
 ## API
 
 ### LoadingBarProvider Props
 
-| Name | Type | Default | Description |
-| --- | --- | --- | --- |
-| loading-bar-style | `{ loading?: string \| object, error?: string \| object }` | `undefined` | Style of the loading bar. |
+| Name | Type | Default | Description | Version |
+| --- | --- | --- | --- | --- |
+| container-class | `string` | `undefined` | Class of the loading bar container. | 2.33.4 |
+| container-style | `string \| object` | `undefined` | Style of the loading bar container. | 2.33.4 |
+| loading-bar-style | `{ loading?: string \| object, error?: string \| object }` | `undefined` | Style of the loading bar. |  |
+| to | `string \| HTMLElement \| false` | `undefined` | Mount target of loading bar. | 2.33.4 |
 
-### `loadingBar` Injection Methods
+### loadingBar Injection Methods
 
 | Name | Type | Description |
 | --- | --- | --- |

@@ -7,9 +7,11 @@ import {
   withDirectives,
   vShow,
   ref,
-  nextTick
+  nextTick,
+  type PropType,
+  type CSSProperties
 } from 'vue'
-import { useTheme } from '../../_mixins'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import { loadingBarLight } from '../styles'
 import { loadingBarProviderInjectionKey } from './context'
 import style from './styles/index.cssr'
@@ -23,7 +25,12 @@ function createClassName (
 
 export default defineComponent({
   name: 'LoadingBar',
+  props: {
+    containerClass: String,
+    containerStyle: [String, Object] as PropType<string | CSSProperties>
+  },
   setup () {
+    const { inlineThemeDisabled } = useConfig()
     const {
       props: providerProps,
       mergedClsPrefixRef
@@ -55,9 +62,10 @@ export default defineComponent({
       toProgress = 80,
       status: 'starting' | 'error' = 'starting'
     ): Promise<void> {
-      await init()
-      loadingRef.value = true
       startedRef.value = true
+      await init()
+      if (finishing) return
+      loadingRef.value = true
       await nextTick()
       const el = loadingBarRef.value
       if (!el) return
@@ -68,8 +76,11 @@ export default defineComponent({
       el.style.transition = ''
       el.style.maxWidth = `${toProgress}%`
     }
-    function finish (): void {
-      if (finishing || erroringRef.value || !loadingRef.value) return
+    async function finish (): Promise<void> {
+      if (finishing || erroringRef.value) return
+      if (startedRef.value) {
+        await nextTick()
+      }
       finishing = true
       const el = loadingBarRef.value
       if (!el) return
@@ -116,6 +127,19 @@ export default defineComponent({
       providerProps,
       mergedClsPrefixRef
     )
+    const cssVarsRef = computed(() => {
+      const {
+        self: { height, colorError, colorLoading }
+      } = themeRef.value
+      return {
+        '--n-height': height,
+        '--n-color-loading': colorLoading,
+        '--n-color-error': colorError
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('loading-bar', undefined, cssVarsRef, providerProps)
+      : undefined
     return {
       mergedClsPrefix: mergedClsPrefixRef,
       loadingBarRef,
@@ -130,16 +154,9 @@ export default defineComponent({
       handleAfterEnter,
       handleAfterLeave,
       mergedLoadingBarStyle,
-      cssVars: computed(() => {
-        const {
-          self: { height, colorError, colorLoading }
-        } = themeRef.value
-        return {
-          '--n-height': height,
-          '--n-color-loading': colorLoading,
-          '--n-color-error': colorError
-        }
-      })
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
@@ -151,6 +168,7 @@ export default defineComponent({
         appear
         onEnter={this.handleEnter}
         onAfterEnter={this.handleAfterEnter}
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         onAfterLeave={this.handleAfterLeave}
         css={!this.transitionDisabled}
       >
@@ -160,12 +178,20 @@ export default defineComponent({
           it.
         */}
         {{
-          default: () =>
-            withDirectives(
-              <div class={`${mergedClsPrefix}-loading-bar-container`}>
+          default: () => {
+            this.onRender?.()
+            return withDirectives(
+              <div
+                class={[
+                  `${mergedClsPrefix}-loading-bar-container`,
+                  this.themeClass,
+                  this.containerClass
+                ]}
+                style={this.containerStyle}
+              >
                 <div
                   ref="loadingBarRef"
-                  class={`${mergedClsPrefix}-loading-bar`}
+                  class={[`${mergedClsPrefix}-loading-bar`]}
                   style={[
                     this.cssVars as any,
                     this.mergedLoadingBarStyle as any
@@ -174,6 +200,7 @@ export default defineComponent({
               </div>,
               [[vShow, this.loading || (!this.loading && this.entering)]]
             )
+          }
         }}
       </Transition>
     )

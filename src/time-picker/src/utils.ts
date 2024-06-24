@@ -1,5 +1,5 @@
-import { getHours } from 'date-fns'
-import { MaybeArray, throwError } from '../../_utils'
+import { getHours } from 'date-fns/esm'
+import { type MaybeArray, throwError } from '../../_utils'
 
 export const time = {
   amHours: [

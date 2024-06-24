@@ -3,23 +3,21 @@ import {
   inject,
   defineComponent,
   Transition,
-  PropType,
-  VNode,
-  Ref
+  type PropType,
+  type VNode,
+  type Ref
 } from 'vue'
-import { TreeNode } from 'treemate'
+import { type TreeNode } from 'treemate'
 import { useMemo } from 'vooks'
-import type { SelectBaseOption } from '../../../select/src/interface'
+import type { SelectOption } from '../../../select/src/interface'
+import { render, mergeEventHandlers } from '../../../_utils'
 import { CheckmarkIcon } from '../../icons'
-import NBaseIcon from '../../icon'
-import { render } from '../../../_utils'
+import { NBaseIcon } from '../../icon'
 import {
-  RenderLabelImpl,
+  type RenderLabelImpl,
   internalSelectionMenuInjectionKey,
-  RenderOptionImpl
+  type RenderOptionImpl
 } from './interface'
-
-const checkMarkIcon = h(CheckmarkIcon)
 
 function renderCheckMark (show: boolean, clsPrefix: string): VNode {
   return (
@@ -32,7 +30,7 @@ function renderCheckMark (show: boolean, clsPrefix: string): VNode {
               class={`${clsPrefix}-base-select-option__check`}
             >
               {{
-                default: () => checkMarkIcon
+                default: () => h(CheckmarkIcon)
               }}
             </NBaseIcon>
           ) : null
@@ -49,7 +47,7 @@ export default defineComponent({
       required: true
     },
     tmNode: {
-      type: Object as PropType<TreeNode<SelectBaseOption>>,
+      type: Object as PropType<TreeNode<SelectOption>>,
       required: true
     }
   },
@@ -61,6 +59,10 @@ export default defineComponent({
       valueSetRef,
       renderLabelRef,
       renderOptionRef,
+      labelFieldRef,
+      valueFieldRef,
+      showCheckmarkRef,
+      nodePropsRef,
       handleOptionClick,
       handleOptionMouseEnter
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -93,12 +95,16 @@ export default defineComponent({
         const { parent } = tmNode
         return parent && parent.rawNode.type === 'group'
       }),
+      showCheckmark: showCheckmarkRef,
+      nodeProps: nodePropsRef,
       isPending: isPendingRef,
       isSelected: useMemo(() => {
         const { value } = valueRef
         const { value: multiple } = multipleRef
         if (value === null) return false
-        const optionValue = props.tmNode.rawNode.value
+        const optionValue = props.tmNode.rawNode[
+          valueFieldRef.value
+        ] as NonNullable<SelectOption['value']>
         if (multiple) {
           const { value: valueSet } = valueSetRef
           return valueSet.has(optionValue)
@@ -106,6 +112,7 @@ export default defineComponent({
           return value === optionValue
         }
       }),
+      labelField: labelFieldRef,
       renderLabel: renderLabelRef as Ref<RenderLabelImpl | undefined>,
       renderOption: renderOptionRef as Ref<RenderOptionImpl | undefined>,
       handleMouseMove,
@@ -120,34 +127,48 @@ export default defineComponent({
       isSelected,
       isPending,
       isGrouped,
-      multiple,
+      showCheckmark,
+      nodeProps,
       renderOption,
       renderLabel,
       handleClick,
       handleMouseEnter,
       handleMouseMove
     } = this
-    const showCheckMark = multiple && isSelected
-    const checkmark = renderCheckMark(showCheckMark, clsPrefix)
+    const checkmark = renderCheckMark(isSelected, clsPrefix)
     const children = renderLabel
-      ? [renderLabel(rawNode, isSelected), checkmark]
-      : [render(rawNode.label, rawNode, isSelected), checkmark]
+      ? [renderLabel(rawNode, isSelected), showCheckmark && checkmark]
+      : [
+          render(
+            rawNode[this.labelField] as SelectOption['label'],
+            rawNode,
+            isSelected
+          ),
+          showCheckmark && checkmark
+        ]
+    const attrs = nodeProps?.(rawNode)
     const node = (
       <div
+        {...attrs}
         class={[
           `${clsPrefix}-base-select-option`,
           rawNode.class,
+          attrs?.class,
           {
             [`${clsPrefix}-base-select-option--disabled`]: rawNode.disabled,
             [`${clsPrefix}-base-select-option--selected`]: isSelected,
             [`${clsPrefix}-base-select-option--grouped`]: isGrouped,
-            [`${clsPrefix}-base-select-option--pending`]: isPending
+            [`${clsPrefix}-base-select-option--pending`]: isPending,
+            [`${clsPrefix}-base-select-option--show-checkmark`]: showCheckmark
           }
         ]}
-        style={rawNode.style}
-        onClick={handleClick}
-        onMouseenter={handleMouseEnter}
-        onMousemove={handleMouseMove}
+        style={[attrs?.style || '', rawNode.style || '']}
+        onClick={mergeEventHandlers([handleClick, attrs?.onClick])}
+        onMouseenter={mergeEventHandlers([
+          handleMouseEnter,
+          attrs?.onMouseenter
+        ])}
+        onMousemove={mergeEventHandlers([handleMouseMove, attrs?.onMousemove])}
       >
         <div class={`${clsPrefix}-base-select-option__content`}>{children}</div>
       </div>

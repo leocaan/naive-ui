@@ -1,7 +1,7 @@
 import sizeVariables from './_common'
 import { commonLight } from '../../_styles/common'
 import type { ThemeCommonVars } from '../../_styles/common'
-import { Theme } from '../../_mixins'
+import { type Theme } from '../../_mixins'
 
 const self = (vars: ThemeCommonVars) => {
   const indicatorColor = 'rgba(0, 0, 0, .85)'
@@ -21,7 +21,8 @@ const self = (vars: ThemeCommonVars) => {
   return {
     ...sizeVariables,
     fontSize,
-    railColor: railColor,
+    markFontSize: fontSize,
+    railColor,
     railColorHover: railColor,
     fillColor: primaryColor,
     fillColorHover: primaryColor,
@@ -38,7 +39,7 @@ const self = (vars: ThemeCommonVars) => {
       '0 1px 4px 0 rgba(0, 0, 0, 0.3), inset 0 0 1px 0 rgba(0, 0, 0, 0.05)',
     handleBoxShadowFocus:
       '0 1px 4px 0 rgba(0, 0, 0, 0.3), inset 0 0 1px 0 rgba(0, 0, 0, 0.05)',
-    indicatorColor: indicatorColor,
+    indicatorColor,
     indicatorBoxShadow: boxShadow,
     indicatorTextColor: baseColor,
     indicatorBorderRadius: borderRadius,

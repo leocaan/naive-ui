@@ -1,21 +1,21 @@
-import { h, ref, defineComponent, inject, PropType, computed } from 'vue'
+import { h, ref, defineComponent, inject, type PropType, computed } from 'vue'
 import { NScrollbar, NBaseFocusDetector } from '../../_internal'
 import { NButton } from '../../button'
 import { getTimeUnits, time, getAmPm } from './utils'
 import {
-  IsHourDisabled,
-  IsMinuteDisabled,
-  IsSecondDisabled,
-  ItemValue,
-  Item,
+  type IsHourDisabled,
+  type IsMinuteDisabled,
+  type IsSecondDisabled,
+  type ItemValue,
+  type Item,
   timePickerInjectionKey
 } from './interface'
 import PanelCol from './PanelCol'
-import { MaybeArray } from '../../_utils'
+import { type MaybeArray } from '../../_utils'
 
 const timePickerPanelProps = {
   actions: {
-    type: Array as PropType<Array<'now' | 'confirm'>>,
+    type: Array as PropType<Array<'clear' | 'now' | 'confirm'> | null>,
     default: () => ['now', 'confirm']
   },
   showHour: {
@@ -75,9 +75,11 @@ const timePickerPanelProps = {
     required: true
   },
   onNowClick: Function as PropType<() => void>,
+  clearText: String,
   nowText: String,
   confirmText: String,
   transitionDisabled: Boolean,
+  onClearClick: Function as PropType<() => void>,
   onConfirmClick: Function as PropType<() => void>,
   onFocusin: Function as PropType<(e: FocusEvent) => void>,
   onFocusout: Function as PropType<(e: FocusEvent) => void>,
@@ -333,31 +335,43 @@ export default defineComponent({
             </div>
           ) : null}
         </div>
-        <div class={`${mergedClsPrefix}-time-picker-actions`}>
-          {this.actions?.includes('now') ? (
-            <NButton
-              size="tiny"
-              theme={mergedTheme.peers.Button}
-              themeOverrides={mergedTheme.peerOverrides.Button}
-              onClick={this.onNowClick}
-            >
-              {{ default: () => this.nowText }}
-            </NButton>
-          ) : null}
-          {this.actions?.includes('confirm') ? (
-            <NButton
-              size="tiny"
-              type="primary"
-              class={`${mergedClsPrefix}-time-picker-actions__confirm`}
-              theme={mergedTheme.peers.Button}
-              themeOverrides={mergedTheme.peerOverrides.Button}
-              disabled={this.isValueInvalid}
-              onClick={this.onConfirmClick}
-            >
-              {{ default: () => this.confirmText }}
-            </NButton>
-          ) : null}
-        </div>
+        {this.actions?.length ? (
+          <div class={`${mergedClsPrefix}-time-picker-actions`}>
+            {this.actions?.includes('clear') ? (
+              <NButton
+                theme={mergedTheme.peers.Button}
+                themeOverrides={mergedTheme.peerOverrides.Button}
+                size="tiny"
+                onClick={this.onClearClick}
+              >
+                {{ default: () => this.clearText }}
+              </NButton>
+            ) : null}
+            {this.actions?.includes('now') ? (
+              <NButton
+                size="tiny"
+                theme={mergedTheme.peers.Button}
+                themeOverrides={mergedTheme.peerOverrides.Button}
+                onClick={this.onNowClick}
+              >
+                {{ default: () => this.nowText }}
+              </NButton>
+            ) : null}
+            {this.actions?.includes('confirm') ? (
+              <NButton
+                size="tiny"
+                type="primary"
+                class={`${mergedClsPrefix}-time-picker-actions__confirm`}
+                theme={mergedTheme.peers.Button}
+                themeOverrides={mergedTheme.peerOverrides.Button}
+                disabled={this.isValueInvalid}
+                onClick={this.onConfirmClick}
+              >
+                {{ default: () => this.confirmText }}
+              </NButton>
+            ) : null}
+          </div>
+        ) : null}
         <NBaseFocusDetector onFocus={this.onFocusDetectorFocus} />
       </div>
     )

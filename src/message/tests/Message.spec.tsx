@@ -1,10 +1,17 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
+import { sleep } from 'seemly'
 import { NMessageProvider, useMessage } from '../index'
 
 const Provider = defineComponent({
   render () {
     return <NMessageProvider max={1}>{this.$slots}</NMessageProvider>
+  }
+})
+
+const NoMaxProvider = defineComponent({
+  render () {
+    return <NMessageProvider>{this.$slots}</NMessageProvider>
   }
 })
 
@@ -29,10 +36,34 @@ describe('n-message', () => {
     ))
     wrapper.unmount()
   })
+  it('should work with showIcon', async () => {
+    const Test = defineComponent({
+      setup () {
+        const message = useMessage()
+
+        message.info('string')
+        message.info('string', {
+          showIcon: false
+        })
+      },
+      render () {
+        return null
+      }
+    })
+    const wrapper = mount(() => (
+      <NoMaxProvider>{{ default: () => <Test /> }}</NoMaxProvider>
+    ))
+
+    await nextTick()
+    expect(document.querySelectorAll('.n-message__icon').length).toBe(1)
+    expect(document.querySelectorAll('.n-message').length).toBe(2)
+
+    wrapper.unmount()
+  })
 })
 
 describe('message-provider', () => {
-  it('props.max', (done) => {
+  it('props.max', async () => {
     const Test = defineComponent({
       setup () {
         const message = useMessage()
@@ -53,13 +84,12 @@ describe('message-provider', () => {
         default: () => <Test />
       }
     })
-    void nextTick(() => {
-      expect(document.querySelectorAll('.n-message').length).toBe(2)
-      wrapper.unmount()
-      done()
-    })
+    await nextTick()
+
+    expect(document.querySelectorAll('.n-message').length).toBe(2)
+    wrapper.unmount()
   })
-  it('props.duration', (done) => {
+  it('props.duration', async () => {
     const Test = defineComponent({
       setup () {
         const message = useMessage()
@@ -77,18 +107,14 @@ describe('message-provider', () => {
         default: () => <Test />
       }
     })
-    void nextTick(() => {
-      setTimeout(() => {
-        expect(document.querySelector('.n-message')).not.toEqual(null)
-      }, 500)
-      setTimeout(() => {
-        expect(document.querySelector('.n-message')).toBe(null)
-        wrapper.unmount()
-        done()
-      }, 1200)
-    })
+    await nextTick()
+    await sleep(500)
+    expect(document.querySelector('.n-message')).not.toEqual(null)
+    await sleep(1200)
+    expect(document.querySelector('.n-message')).toBe(null)
+    wrapper.unmount()
   })
-  it('props.closable', (done) => {
+  it('props.closable', async () => {
     const Test = defineComponent({
       setup () {
         const message = useMessage()
@@ -106,14 +132,12 @@ describe('message-provider', () => {
         default: () => <Test />
       }
     })
-    void nextTick(() => {
-      expect(document.querySelector('.n-message__close')).not.toBe(null)
-      wrapper.unmount()
-      done()
-    })
+    await nextTick()
+    expect(document.querySelector('.n-message__close')).not.toBe(null)
+    wrapper.unmount()
   })
 
-  it('props.container-style', (done) => {
+  it('props.container-style', async () => {
     const Test = defineComponent({
       setup () {
         const message = useMessage()
@@ -131,14 +155,10 @@ describe('message-provider', () => {
         default: () => <Test />
       }
     })
-    void nextTick(() => {
-      const container = document.querySelector('.n-message-container')
-      expect(container).not.toBe(null)
-      expect((container as HTMLElement).style.cssText).toContain(
-        'padding: 24px'
-      )
-      wrapper.unmount()
-      done()
-    })
+    await nextTick()
+    const container = document.querySelector('.n-message-container')
+    expect(container).not.toBe(null)
+    expect((container as HTMLElement).style.cssText).toContain('padding: 24px')
+    wrapper.unmount()
   })
 })

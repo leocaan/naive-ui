@@ -5,7 +5,8 @@ const frFR: NLocale = {
   global: {
     undo: 'Défaire',
     redo: 'Refaire',
-    confirm: 'Confirmer'
+    confirm: 'Confirmer',
+    clear: 'Effacer'
   },
   Popconfirm: {
     positiveText: 'Confirmer',
@@ -30,6 +31,7 @@ const frFR: NLocale = {
     dateFormat: 'dd/MM/yyyy',
     dateTimeFormat: 'dd/MM/yyyy HH:mm:ss',
     quarterFormat: 'qqq yyyy',
+    weekFormat: 'yyyy-w',
     clear: 'Effacer',
     now: 'Maintenant',
     confirm: 'Confirmer',
@@ -40,12 +42,15 @@ const frFR: NLocale = {
     monthPlaceholder: 'Sélectionner le mois',
     yearPlaceholder: "Sélectionner l'année",
     quarterPlaceholder: 'Sélectionner le trimestre',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Date de début',
     endDatePlaceholder: 'Date de fin',
     startDatetimePlaceholder: 'Date et heure de début',
     endDatetimePlaceholder: 'Date et heure de fin',
+    startMonthPlaceholder: 'Mois de début',
+    endMonthPlaceholder: 'Mois de fin',
     monthBeforeYear: true,
-    firstDayOfWeek: 1,
+    firstDayOfWeek: 0,
     today: "Aujourd'hui"
   },
   DataTable: {
@@ -54,9 +59,16 @@ const frFR: NLocale = {
     confirm: 'Confirmer',
     clear: 'Effacer'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Source',
     targetTitle: 'Cible'
+  },
+  Transfer: {
+    selectAll: 'Sélectionner tout',
+    unselectAll: 'Désélectionner tout',
+    clearAll: 'Effacer',
+    total: (num: number): string => `Total ${num} éléments`,
+    selected: (num: number): string => `${num} éléments sélectionnés`
   },
   Empty: {
     description: 'Aucune donnée'
@@ -68,7 +80,8 @@ const frFR: NLocale = {
     placeholder: "Sélectionner l'heure",
     positiveText: 'OK',
     negativeText: 'Annuler',
-    now: 'Maintenant'
+    now: 'Maintenant',
+    clear: 'Effacer'
   },
   Pagination: {
     goto: 'Aller à',
@@ -90,7 +103,7 @@ const frFR: NLocale = {
     create: 'Créer'
   },
   ThemeEditor: {
-    title: 'Editeur de thème',
+    title: 'Éditeur de thème',
     clearAllVars: 'Effacer toutes les variables',
     clearSearch: 'Effacer la recherche',
     filterCompName: 'Filtrer par nom de composant',
@@ -99,15 +112,16 @@ const frFR: NLocale = {
     export: 'Exporter',
     restore: 'Réinitialiser'
   },
-  // TODO: translation
   Image: {
-    tipPrevious: 'Previous picture (←)',
-    tipNext: 'Next picture (→)',
-    tipCounterclockwise: 'Counterclockwise',
-    tipClockwise: 'Clockwise',
-    tipZoomOut: 'Zoom out',
-    tipZoomIn: 'Zoom in',
-    tipClose: 'Close (Esc)'
+    tipPrevious: 'Image précédente (←)',
+    tipNext: 'Image suivante (→)',
+    tipCounterclockwise: 'Sens antihoraire',
+    tipClockwise: 'Sens horaire',
+    tipZoomOut: 'Dézoomer',
+    tipZoomIn: 'Zoomer',
+    tipDownload: 'Descargar',
+    tipClose: 'Fermer (Échap.)',
+    tipOriginalSize: 'Zoom à la taille originale'
   }
 }
 

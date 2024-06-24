@@ -1,6 +1,7 @@
 import { defineComponent, h, inject } from 'vue'
 import { render } from '../../_utils'
 import { dropdownInjectionKey, dropdownMenuInjectionKey } from './context'
+import type { DropdownMixedOption } from './interface'
 
 export default defineComponent({
   name: 'DropdownGroupHeader',
@@ -21,21 +22,34 @@ export default defineComponent({
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     } = inject(dropdownMenuInjectionKey)!
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { renderLabelRef, labelFieldRef } = inject(dropdownInjectionKey)!
+    const { renderLabelRef, labelFieldRef, nodePropsRef, renderOptionRef } =
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      inject(dropdownInjectionKey)!
 
     return {
       labelField: labelFieldRef,
       showIcon: showIconRef,
       hasSubmenu: hasSubmenuRef,
-      renderLabel: renderLabelRef
+      renderLabel: renderLabelRef,
+      nodeProps: nodePropsRef,
+      renderOption: renderOptionRef
     }
   },
   render () {
-    const { clsPrefix, hasSubmenu, showIcon, renderLabel } = this
+    const {
+      clsPrefix,
+      hasSubmenu,
+      showIcon,
+      nodeProps,
+      renderLabel,
+      renderOption
+    } = this
     const { rawNode } = this.tmNode
-    return (
-      <div class={`${clsPrefix}-dropdown-option`}>
+    const node = (
+      <div
+        class={`${clsPrefix}-dropdown-option`}
+        {...nodeProps?.(rawNode as DropdownMixedOption)}
+      >
         <div
           class={`${clsPrefix}-dropdown-option-body ${clsPrefix}-dropdown-option-body--group`}
         >
@@ -53,7 +67,7 @@ export default defineComponent({
             data-dropdown-option
           >
             {renderLabel
-              ? renderLabel(rawNode)
+              ? renderLabel(rawNode as DropdownMixedOption)
               : render(rawNode.title ?? rawNode[this.labelField])}
           </div>
           <div
@@ -67,5 +81,9 @@ export default defineComponent({
         </div>
       </div>
     )
+    if (renderOption) {
+      return renderOption({ node, option: rawNode })
+    }
+    return node
   }
 })

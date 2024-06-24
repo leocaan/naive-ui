@@ -7,40 +7,51 @@ import {
   toRef,
   onMounted,
   getCurrentInstance,
-  PropType,
-  CSSProperties,
+  type PropType,
+  type CSSProperties,
   watch,
   watchEffect,
-  WatchStopHandle,
+  type WatchStopHandle,
   provide,
-  InputHTMLAttributes,
-  TextareaHTMLAttributes,
-  Fragment
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+  Fragment,
+  type VNode,
+  type VNodeChild
 } from 'vue'
 import { useMergedState, useMemo } from 'vooks'
 import { getPadding } from 'seemly'
 import { VResizeObserver } from 'vueuc'
 import { off, on } from 'evtd'
+import { isSafari } from '../../_utils/env/browser'
 import type { FormValidationStatus } from '../../form/src/interface'
 import { EyeIcon, EyeOffIcon } from '../../_internal/icons'
+import { useRtl } from '../../_mixins/use-rtl'
 import {
   NBaseClear,
   NBaseIcon,
   NBaseSuffix,
   NScrollbar,
-  ScrollbarInst
+  type ScrollbarInst
 } from '../../_internal'
-import { useTheme, useLocale, useFormItem, useConfig } from '../../_mixins'
+import {
+  useTheme,
+  useLocale,
+  useFormItem,
+  useConfig,
+  useThemeClass,
+  useStyle
+} from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
 import {
   call,
   createKey,
-  ExtractPublicPropTypes,
+  type ExtractPublicPropTypes,
   resolveSlot,
   resolveWrappedSlot,
-  warnOnce
+  warnOnce,
+  type MaybeArray
 } from '../../_utils'
-import type { MaybeArray } from '../../_utils'
 import { inputLight } from '../styles'
 import type { InputTheme } from '../styles'
 import type {
@@ -50,11 +61,11 @@ import type {
   InputWrappedRef
 } from './interface'
 import { inputInjectionKey } from './interface'
-import { isEmptyValue } from './utils'
+import { isEmptyInputValue, useCursor } from './utils'
 import WordCount from './WordCount'
-import style from './styles/input.cssr'
+import style, { safariStyle } from './styles/input.cssr'
 
-const inputProps = {
+export const inputProps = {
   ...(useTheme.props as ThemeProps<InputTheme>),
   bordered: {
     type: Boolean as PropType<boolean | undefined>,
@@ -112,15 +123,18 @@ const inputProps = {
     type: Boolean,
     default: undefined
   },
+  allowInput: Function as PropType<(value: string) => boolean>,
+  renderCount: Function as PropType<(props: { value: string }) => VNodeChild>,
   onMousedown: Function as PropType<(e: MouseEvent) => void>,
   onKeydown: Function as PropType<(e: KeyboardEvent) => void>,
-  onKeyup: Function as PropType<(e: KeyboardEvent) => void>,
+  onKeyup: [Function, Array] as PropType<(e: KeyboardEvent) => void>,
   onInput: [Function, Array] as PropType<OnUpdateValue>,
   onFocus: [Function, Array] as PropType<MaybeArray<(e: FocusEvent) => void>>,
   onBlur: [Function, Array] as PropType<MaybeArray<(e: FocusEvent) => void>>,
   onClick: [Function, Array] as PropType<MaybeArray<(e: MouseEvent) => void>>,
   onChange: [Function, Array] as PropType<OnUpdateValue>,
   onClear: [Function, Array] as PropType<MaybeArray<(e: MouseEvent) => void>>,
+  countGraphemes: Function as PropType<(value: string) => number>,
   status: String as PropType<FormValidationStatus>,
   'onUpdate:value': [Function, Array] as PropType<MaybeArray<OnUpdateValue>>,
   onUpdateValue: [Function, Array] as PropType<MaybeArray<OnUpdateValue>>,
@@ -146,7 +160,10 @@ const inputProps = {
   >,
   internalDeactivateOnEnter: Boolean,
   internalForceFocus: Boolean,
-  internalLoadingBeforeSuffix: Boolean,
+  internalLoadingBeforeSuffix: {
+    type: Boolean,
+    default: true
+  },
   /** deprecated */
   showPasswordToggle: Boolean
 }
@@ -167,7 +184,12 @@ export default defineComponent({
         }
       })
     }
-    const { mergedClsPrefixRef, mergedBorderedRef } = useConfig(props)
+    const {
+      mergedClsPrefixRef,
+      mergedBorderedRef,
+      inlineThemeDisabled,
+      mergedRtlRef
+    } = useConfig(props)
     const themeRef = useTheme(
       'Input',
       '-input',
@@ -176,6 +198,9 @@ export default defineComponent({
       props,
       mergedClsPrefixRef
     )
+    if (isSafari) {
+      useStyle('-input-safari', safariStyle, mergedClsPrefixRef)
+    }
     // dom refs
     const wrapperElRef = ref<HTMLElement | null>(null)
     const textareaElRef = ref<HTMLTextAreaElement | null>(null)
@@ -183,6 +208,10 @@ export default defineComponent({
     const inputMirrorElRef = ref<HTMLElement | null>(null)
     const inputElRef = ref<HTMLInputElement | null>(null)
     const inputEl2Ref = ref<HTMLInputElement | null>(null)
+    const currentFocusedInputRef = ref<
+    HTMLInputElement | HTMLTextAreaElement | null
+    >(null)
+    const focusedInputCursorControl = useCursor(currentFocusedInputRef)
     const textareaScrollbarInstRef = ref<ScrollbarInst | null>(null)
     // local
     const { localeRef } = useLocale('Input')
@@ -224,8 +253,8 @@ export default defineComponent({
       const { value: mergedPlaceholder } = mergedPlaceholderRef
       return (
         !isComposing &&
-        (isEmptyValue(mergedValue) ||
-          (Array.isArray(mergedValue) && isEmptyValue(mergedValue[0]))) &&
+        (isEmptyInputValue(mergedValue) ||
+          (Array.isArray(mergedValue) && isEmptyInputValue(mergedValue[0]))) &&
         mergedPlaceholder[0]
       )
     })
@@ -236,8 +265,8 @@ export default defineComponent({
       return (
         !isComposing &&
         mergedPlaceholder[1] &&
-        (isEmptyValue(mergedValue) ||
-          (Array.isArray(mergedValue) && isEmptyValue(mergedValue[1])))
+        (isEmptyInputValue(mergedValue) ||
+          (Array.isArray(mergedValue) && isEmptyInputValue(mergedValue[1])))
       )
     })
     // focus
@@ -293,12 +322,17 @@ export default defineComponent({
         }
       ]
     })
+    const textAreaScrollContainerWidthRef = ref<number | undefined>(undefined)
     // textarea autosize
     const updateTextAreaStyle = (): void => {
       if (props.type === 'textarea') {
         const { autosize } = props
-        if (typeof autosize === 'boolean') return
+        if (autosize) {
+          textAreaScrollContainerWidthRef.value =
+            textareaScrollbarInstRef.value?.$el?.offsetWidth
+        }
         if (!textareaElRef.value) return
+        if (typeof autosize === 'boolean') return
         const {
           paddingTop: stylePaddingTop,
           paddingBottom: stylePaddingBottom,
@@ -339,23 +373,38 @@ export default defineComponent({
     // other methods
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const vm = getCurrentInstance()!.proxy!
-    function doUpdateValue (value: [string, string]): void
-    function doUpdateValue (value: string): void
-    function doUpdateValue (value: string | [string, string]): void {
+    function doUpdateValue (
+      value: [string, string],
+      meta: { source: 0 | 1 | 'clear' }
+    ): void
+    function doUpdateValue (
+      value: string,
+      meta: { source: 0 | 1 | 'clear' }
+    ): void
+    function doUpdateValue (
+      value: string | [string, string],
+      meta: { source: 0 | 1 | 'clear' }
+    ): void {
       const { onUpdateValue, 'onUpdate:value': _onUpdateValue, onInput } = props
       const { nTriggerFormInput } = formItem
-      if (onUpdateValue) call(onUpdateValue as OnUpdateValueImpl, value)
-      if (_onUpdateValue) call(_onUpdateValue as OnUpdateValueImpl, value)
-      if (onInput) call(onInput as OnUpdateValueImpl, value)
+      if (onUpdateValue) call(onUpdateValue as OnUpdateValueImpl, value, meta)
+      if (_onUpdateValue) call(_onUpdateValue as OnUpdateValueImpl, value, meta)
+      if (onInput) call(onInput as OnUpdateValueImpl, value, meta)
       uncontrolledValueRef.value = value
       nTriggerFormInput()
     }
-    function doChange (value: [string, string]): void
-    function doChange (value: string): void
-    function doChange (value: string | [string, string]): void {
+    function doChange (
+      value: [string, string],
+      meta: { source: 0 | 1 | 'clear' }
+    ): void
+    function doChange (value: string, meta: { source: 0 | 1 | 'clear' }): void
+    function doChange (
+      value: string | [string, string],
+      meta: { source: 0 | 1 | 'clear' }
+    ): void {
       const { onChange } = props
       const { nTriggerFormChange } = formItem
-      if (onChange) call(onChange as OnUpdateValueImpl, value)
+      if (onChange) call(onChange as OnUpdateValueImpl, value, meta)
       uncontrolledValueRef.value = value
       nTriggerFormChange()
     }
@@ -422,6 +471,9 @@ export default defineComponent({
     ): void {
       const targetValue = (e.target as HTMLInputElement).value
       syncMirror(targetValue)
+      if (e instanceof InputEvent && !e.isComposing) {
+        isComposingRef.value = false
+      }
       if (props.type === 'textarea') {
         const { value: textareaScrollbarInst } = textareaScrollbarInstRef
         if (textareaScrollbarInst) {
@@ -430,22 +482,55 @@ export default defineComponent({
       }
       syncSource = targetValue
       if (isComposingRef.value) return
-      const changedValue = targetValue
-      if (!props.pair) {
-        event === 'input' ? doUpdateValue(changedValue) : doChange(changedValue)
-      } else {
-        let { value } = mergedValueRef
-        if (!Array.isArray(value)) {
-          value = ['', '']
+      focusedInputCursorControl.recordCursor()
+      const isIncomingValueValid = allowInput(targetValue)
+      if (isIncomingValueValid) {
+        if (!props.pair) {
+          event === 'input'
+            ? doUpdateValue(targetValue, { source: index })
+            : doChange(targetValue, { source: index })
         } else {
-          value = [...value]
+          let { value } = mergedValueRef
+          if (!Array.isArray(value)) {
+            value = ['', '']
+          } else {
+            value = [value[0], value[1]]
+          }
+          value[index] = targetValue
+          event === 'input'
+            ? doUpdateValue(value, { source: index })
+            : doChange(value, { source: index })
         }
-        value[index] = changedValue
-        event === 'input' ? doUpdateValue(value) : doChange(value)
       }
       // force update to sync input's view with value
       // if not set, after input, input value won't sync with dom input value
       vm.$forceUpdate()
+      if (!isIncomingValueValid) {
+        void nextTick(focusedInputCursorControl.restoreCursor)
+      }
+    }
+    function allowInput (value: string): boolean {
+      const { countGraphemes, maxlength, minlength } = props
+      if (countGraphemes) {
+        let graphemesCount: number | undefined
+        if (maxlength !== undefined) {
+          if (graphemesCount === undefined) {
+            graphemesCount = countGraphemes(value)
+          }
+          if (graphemesCount > Number(maxlength)) return false
+        }
+        if (minlength !== undefined) {
+          if (graphemesCount === undefined) {
+            graphemesCount = countGraphemes(value)
+          }
+          if (graphemesCount < Number(maxlength)) return false
+        }
+      }
+      const { allowInput } = props
+      if (typeof allowInput === 'function') {
+        return allowInput(value)
+      }
+      return true
     }
     function handleInputBlur (e: FocusEvent): void {
       doUpdateValueBlur(e)
@@ -463,13 +548,21 @@ export default defineComponent({
         activatedRef.value = false
       }
       dealWithEvent(e, 'blur')
+      currentFocusedInputRef.value = null
     }
-    function handleInputFocus (e: FocusEvent): void {
+    function handleInputFocus (e: FocusEvent, index: number): void {
       doUpdateValueFocus(e)
       focusedRef.value = true
       activatedRef.value = true
       doActivate()
       dealWithEvent(e, 'focus')
+      if (index === 0) {
+        currentFocusedInputRef.value = inputElRef.value
+      } else if (index === 1) {
+        currentFocusedInputRef.value = inputEl2Ref.value
+      } else if (index === 2) {
+        currentFocusedInputRef.value = textareaElRef.value
+      }
     }
     function handleWrapperBlur (e: FocusEvent): void {
       if (props.passivelyActivated) {
@@ -513,12 +606,15 @@ export default defineComponent({
     }
     function handleClear (e: MouseEvent): void {
       doClear(e)
+      clearValue()
+    }
+    function clearValue (): void {
       if (props.pair) {
-        doUpdateValue(['', ''])
-        doChange(['', ''])
+        doUpdateValue(['', ''], { source: 'clear' })
+        doChange(['', ''], { source: 'clear' })
       } else {
-        doUpdateValue('')
-        doChange('')
+        doUpdateValue('', { source: 'clear' })
+        doChange('', { source: 'clear' })
       }
     }
     function handleMouseDown (e: MouseEvent): void {
@@ -534,7 +630,7 @@ export default defineComponent({
             const resizeHandleSize = 14
             if (
               left + width - resizeHandleSize < e.clientX &&
-              e.clientY < left + width &&
+              e.clientX < left + width &&
               top + height - resizeHandleSize < e.clientY &&
               e.clientY < top + height
             ) {
@@ -584,24 +680,26 @@ export default defineComponent({
       }
       on('mouseup', document, hidePassword)
     }
-    function handleWrapperKeyDown (e: KeyboardEvent): void {
-      props.onKeydown?.(e)
-      switch (e.code) {
+    function handleWrapperKeyup (e: KeyboardEvent): void {
+      if (props.onKeyup) call(props.onKeyup, e)
+    }
+    function handleWrapperKeydown (e: KeyboardEvent): void {
+      if (props.onKeydown) call(props.onKeydown, e)
+      switch (e.key) {
         case 'Escape':
-          handleWrapperKeyDownEsc()
+          handleWrapperKeydownEsc()
           break
         case 'Enter':
-        case 'NumpadEnter':
-          handleWrapperKeyDownEnter(e)
+          handleWrapperKeydownEnter(e)
           break
       }
     }
-    function handleWrapperKeyDownEnter (e: KeyboardEvent): void {
+    function handleWrapperKeydownEnter (e: KeyboardEvent): void {
       if (props.passivelyActivated) {
         const { value: focused } = activatedRef
         if (focused) {
           if (props.internalDeactivateOnEnter) {
-            handleWrapperKeyDownEsc()
+            handleWrapperKeydownEsc()
           }
           return
         }
@@ -613,7 +711,7 @@ export default defineComponent({
         }
       }
     }
-    function handleWrapperKeyDownEsc (): void {
+    function handleWrapperKeydownEsc (): void {
       if (props.passivelyActivated) {
         activatedRef.value = false
         void nextTick(() => {
@@ -650,9 +748,20 @@ export default defineComponent({
         wrapperEl?.contains(document.activeElement) &&
         wrapperEl !== document.activeElement
       ) {
-        handleWrapperKeyDownEsc()
+        handleWrapperKeydownEsc()
       }
     }
+
+    function scrollTo (options: ScrollToOptions): void {
+      if (props.type === 'textarea') {
+        const { value: textareaEl } = textareaElRef
+        textareaEl?.scrollTo(options)
+      } else {
+        const { value: inputEl } = inputElRef
+        inputEl?.scrollTo(options)
+      }
+    }
+
     function syncMirror (value: string | null): void {
       const { type, pair, autosize } = props
       if (!pair && autosize) {
@@ -716,7 +825,8 @@ export default defineComponent({
     provide(inputInjectionKey, {
       mergedValueRef,
       maxlengthRef,
-      mergedClsPrefixRef
+      mergedClsPrefixRef,
+      countGraphemesRef: toRef(props, 'countGraphemes')
     })
 
     const exposedProps: InputWrappedRef = {
@@ -724,12 +834,136 @@ export default defineComponent({
       inputElRef,
       textareaElRef,
       isCompositing: isComposingRef,
+      clear: clearValue,
       focus,
       blur,
       select,
       deactivate,
-      activate
+      activate,
+      scrollTo
     }
+
+    const rtlEnabledRef = useRtl('Input', mergedRtlRef, mergedClsPrefixRef)
+    const cssVarsRef = computed(() => {
+      const { value: size } = mergedSizeRef
+      const {
+        common: { cubicBezierEaseInOut },
+        self: {
+          color,
+          borderRadius,
+          textColor,
+          caretColor,
+          caretColorError,
+          caretColorWarning,
+          textDecorationColor,
+          border,
+          borderDisabled,
+          borderHover,
+          borderFocus,
+          placeholderColor,
+          placeholderColorDisabled,
+          lineHeightTextarea,
+          colorDisabled,
+          colorFocus,
+          textColorDisabled,
+          boxShadowFocus,
+          iconSize,
+          colorFocusWarning,
+          boxShadowFocusWarning,
+          borderWarning,
+          borderFocusWarning,
+          borderHoverWarning,
+          colorFocusError,
+          boxShadowFocusError,
+          borderError,
+          borderFocusError,
+          borderHoverError,
+          clearSize,
+          clearColor,
+          clearColorHover,
+          clearColorPressed,
+          iconColor,
+          iconColorDisabled,
+          suffixTextColor,
+          countTextColor,
+          countTextColorDisabled,
+          iconColorHover,
+          iconColorPressed,
+          loadingColor,
+          loadingColorError,
+          loadingColorWarning,
+          [createKey('padding', size)]: padding,
+          [createKey('fontSize', size)]: fontSize,
+          [createKey('height', size)]: height
+        }
+      } = themeRef.value
+      const { left: paddingLeft, right: paddingRight } = getPadding(padding)
+      return {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-count-text-color': countTextColor,
+        '--n-count-text-color-disabled': countTextColorDisabled,
+        '--n-color': color,
+        '--n-font-size': fontSize,
+        '--n-border-radius': borderRadius,
+        '--n-height': height,
+        '--n-padding-left': paddingLeft,
+        '--n-padding-right': paddingRight,
+        '--n-text-color': textColor,
+        '--n-caret-color': caretColor,
+        '--n-text-decoration-color': textDecorationColor,
+        '--n-border': border,
+        '--n-border-disabled': borderDisabled,
+        '--n-border-hover': borderHover,
+        '--n-border-focus': borderFocus,
+        '--n-placeholder-color': placeholderColor,
+        '--n-placeholder-color-disabled': placeholderColorDisabled,
+        '--n-icon-size': iconSize,
+        '--n-line-height-textarea': lineHeightTextarea,
+        '--n-color-disabled': colorDisabled,
+        '--n-color-focus': colorFocus,
+        '--n-text-color-disabled': textColorDisabled,
+        '--n-box-shadow-focus': boxShadowFocus,
+        '--n-loading-color': loadingColor,
+        // form warning
+        '--n-caret-color-warning': caretColorWarning,
+        '--n-color-focus-warning': colorFocusWarning,
+        '--n-box-shadow-focus-warning': boxShadowFocusWarning,
+        '--n-border-warning': borderWarning,
+        '--n-border-focus-warning': borderFocusWarning,
+        '--n-border-hover-warning': borderHoverWarning,
+        '--n-loading-color-warning': loadingColorWarning,
+        // form error
+        '--n-caret-color-error': caretColorError,
+        '--n-color-focus-error': colorFocusError,
+        '--n-box-shadow-focus-error': boxShadowFocusError,
+        '--n-border-error': borderError,
+        '--n-border-focus-error': borderFocusError,
+        '--n-border-hover-error': borderHoverError,
+        '--n-loading-color-error': loadingColorError,
+        // clear-button
+        '--n-clear-color': clearColor,
+        '--n-clear-size': clearSize,
+        '--n-clear-color-hover': clearColorHover,
+        '--n-clear-color-pressed': clearColorPressed,
+        '--n-icon-color': iconColor,
+        '--n-icon-color-hover': iconColorHover,
+        '--n-icon-color-pressed': iconColorPressed,
+        '--n-icon-color-disabled': iconColorDisabled,
+        '--n-suffix-text-color': suffixTextColor
+      }
+    })
+
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'input',
+        computed(() => {
+          const { value: size } = mergedSizeRef
+          return size[0]
+        }),
+        cssVarsRef,
+        props
+      )
+      : undefined
 
     return {
       ...exposedProps,
@@ -742,6 +976,7 @@ export default defineComponent({
       textareaMirrorElRef,
       textareaScrollbarInstRef,
       // value
+      rtlEnabled: rtlEnabledRef,
       uncontrolledValue: uncontrolledValueRef,
       mergedValue: mergedValueRef,
       passwordVisible: passwordVisibleRef,
@@ -760,6 +995,7 @@ export default defineComponent({
       mergedShowPasswordOn: mergedShowPasswordOnRef,
       placeholderStyle: placeholderStyleRef,
       mergedStatus: mergedStatusRef,
+      textAreaScrollContainerWidth: textAreaScrollContainerWidthRef,
       // methods
       handleTextAreaScroll,
       handleCompositionStart,
@@ -777,136 +1013,54 @@ export default defineComponent({
       handleClear,
       handlePasswordToggleClick,
       handlePasswordToggleMousedown,
-      handleWrapperKeyDown,
+      handleWrapperKeydown,
+      handleWrapperKeyup,
       handleTextAreaMirrorResize,
       getTextareaScrollContainer: () => {
         return textareaElRef.value
       },
       mergedTheme: themeRef,
-      cssVars: computed(() => {
-        const { value: size } = mergedSizeRef
-        const {
-          common: { cubicBezierEaseInOut },
-          self: {
-            color,
-            borderRadius,
-            textColor,
-            caretColor,
-            caretColorError,
-            caretColorWarning,
-            textDecorationColor,
-            border,
-            borderDisabled,
-            borderHover,
-            borderFocus,
-            placeholderColor,
-            placeholderColorDisabled,
-            lineHeightTextarea,
-            colorDisabled,
-            colorFocus,
-            textColorDisabled,
-            boxShadowFocus,
-            iconSize,
-            colorFocusWarning,
-            boxShadowFocusWarning,
-            borderWarning,
-            borderFocusWarning,
-            borderHoverWarning,
-            colorFocusError,
-            boxShadowFocusError,
-            borderError,
-            borderFocusError,
-            borderHoverError,
-            clearSize,
-            clearColor,
-            clearColorHover,
-            clearColorPressed,
-            iconColor,
-            iconColorDisabled,
-            suffixTextColor,
-            countTextColor,
-            iconColorHover,
-            iconColorPressed,
-            loadingColor,
-            loadingColorError,
-            loadingColorWarning,
-            [createKey('padding', size)]: padding,
-            [createKey('fontSize', size)]: fontSize,
-            [createKey('height', size)]: height
-          }
-        } = themeRef.value
-        const { left: paddingLeft, right: paddingRight } = getPadding(padding)
-        return {
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-count-text-color': countTextColor,
-          '--n-color': color,
-          '--n-font-size': fontSize,
-          '--n-border-radius': borderRadius,
-          '--n-height': height,
-          '--n-padding-left': paddingLeft,
-          '--n-padding-right': paddingRight,
-          '--n-text-color': textColor,
-          '--n-caret-color': caretColor,
-          '--n-text-decoration-color': textDecorationColor,
-          '--n-border': border,
-          '--n-border-disabled': borderDisabled,
-          '--n-border-hover': borderHover,
-          '--n-border-focus': borderFocus,
-          '--n-placeholder-color': placeholderColor,
-          '--n-placeholder-color-disabled': placeholderColorDisabled,
-          '--n-icon-size': iconSize,
-          '--n-line-height-textarea': lineHeightTextarea,
-          '--n-color-disabled': colorDisabled,
-          '--n-color-focus': colorFocus,
-          '--n-text-color-disabled': textColorDisabled,
-          '--n-box-shadow-focus': boxShadowFocus,
-          '--n-loading-color': loadingColor,
-          // form warning
-          '--n-caret-color-warning': caretColorWarning,
-          '--n-color-focus-warning': colorFocusWarning,
-          '--n-box-shadow-focus-warning': boxShadowFocusWarning,
-          '--n-border-warning': borderWarning,
-          '--n-border-focus-warning': borderFocusWarning,
-          '--n-border-hover-warning': borderHoverWarning,
-          '--n-loading-color-warning': loadingColorWarning,
-          // form error
-          '--n-caret-color-error': caretColorError,
-          '--n-color-focus-error': colorFocusError,
-          '--n-box-shadow-focus-error': boxShadowFocusError,
-          '--n-border-error': borderError,
-          '--n-border-focus-error': borderFocusError,
-          '--n-border-hover-error': borderHoverError,
-          '--n-loading-color-error': loadingColorError,
-          // clear-button
-          '--n-clear-color': clearColor,
-          '--n-clear-size': clearSize,
-          '--n-clear-color-hover': clearColorHover,
-          '--n-clear-color-pressed': clearColorPressed,
-          '--n-icon-color': iconColor,
-          '--n-icon-color-hover': iconColorHover,
-          '--n-icon-color-pressed': iconColorPressed,
-          '--n-icon-color-disabled': iconColorDisabled,
-          '--n-suffix-text-color': suffixTextColor
-        }
-      })
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
-    const { mergedClsPrefix, mergedStatus, $slots } = this
+    const {
+      mergedClsPrefix,
+      mergedStatus,
+      themeClass,
+      type,
+      countGraphemes,
+      onRender
+    } = this
+    const $slots = this.$slots as {
+      prefix?: () => VNode[]
+      suffix?: () => VNode[]
+      separator?: () => VNode[]
+      count?: (props: unknown) => VNode[]
+      ['clear-icon']?: () => VNode[]
+      ['clear-icon-placeholder']?: () => VNode[]
+      ['password-visible-icon']?: () => VNode[]
+      ['password-invisible-icon']?: () => VNode[]
+    }
+    onRender?.()
     return (
       <div
         ref="wrapperElRef"
         class={[
           `${mergedClsPrefix}-input`,
+          themeClass,
           mergedStatus && `${mergedClsPrefix}-input--${mergedStatus}-status`,
           {
+            [`${mergedClsPrefix}-input--rtl`]: this.rtlEnabled,
             [`${mergedClsPrefix}-input--disabled`]: this.mergedDisabled,
-            [`${mergedClsPrefix}-input--textarea`]: this.type === 'textarea',
+            [`${mergedClsPrefix}-input--textarea`]: type === 'textarea',
             [`${mergedClsPrefix}-input--resizable`]:
               this.resizable && !this.autosize,
             [`${mergedClsPrefix}-input--autosize`]: this.autosize,
             [`${mergedClsPrefix}-input--round`]:
-              this.round && !(this.type === 'textarea'),
+              this.round && !(type === 'textarea'),
             [`${mergedClsPrefix}-input--pair`]: this.pair,
             [`${mergedClsPrefix}-input--focus`]: this.mergedFocus,
             [`${mergedClsPrefix}-input--stateful`]: this.stateful
@@ -926,46 +1080,67 @@ export default defineComponent({
         onMouseleave={this.handleMouseLeave}
         onCompositionstart={this.handleCompositionStart}
         onCompositionend={this.handleCompositionEnd}
-        onKeyup={this.onKeyup}
-        onKeydown={this.handleWrapperKeyDown}
+        onKeyup={this.handleWrapperKeyup}
+        onKeydown={this.handleWrapperKeydown}
       >
         {/* textarea & basic input */}
         <div class={`${mergedClsPrefix}-input-wrapper`}>
-          {resolveWrappedSlot($slots.prefix, (children) => [
-            <div class={`${mergedClsPrefix}-input__prefix`}>{children}</div>
-          ])}
-          {this.type === 'textarea' ? (
+          {resolveWrappedSlot(
+            $slots.prefix,
+            (children) =>
+              children && (
+                <div class={`${mergedClsPrefix}-input__prefix`}>{children}</div>
+              )
+          )}
+          {type === 'textarea' ? (
             <NScrollbar
               ref="textareaScrollbarInstRef"
               class={`${mergedClsPrefix}-input__textarea`}
               container={this.getTextareaScrollContainer}
               triggerDisplayManually
               useUnifiedContainer
+              internalHoistYRail
             >
               {{
                 default: () => {
+                  const { textAreaScrollContainerWidth } = this
+                  const scrollContainerWidthStyle = {
+                    width:
+                      this.autosize &&
+                      textAreaScrollContainerWidth &&
+                      `${textAreaScrollContainerWidth}px`
+                  }
                   return (
                     <>
                       <textarea
                         {...this.inputProps}
                         ref="textareaElRef"
-                        class={`${mergedClsPrefix}-input__textarea-el`}
+                        class={[
+                          `${mergedClsPrefix}-input__textarea-el`,
+                          this.inputProps?.class
+                        ]}
                         autofocus={this.autofocus}
                         rows={Number(this.rows)}
                         placeholder={this.placeholder as string | undefined}
                         value={this.mergedValue as string | undefined}
                         disabled={this.mergedDisabled}
-                        maxlength={this.maxlength as any}
-                        minlength={this.minlength as any}
+                        maxlength={countGraphemes ? undefined : this.maxlength}
+                        minlength={countGraphemes ? undefined : this.minlength}
                         readonly={this.readonly as any}
                         tabindex={
                           this.passivelyActivated && !this.activated
                             ? -1
                             : undefined
                         }
-                        style={this.textDecorationStyle[0] as any}
+                        style={[
+                          this.textDecorationStyle[0] as any,
+                          this.inputProps?.style,
+                          scrollContainerWidthStyle
+                        ]}
                         onBlur={this.handleInputBlur}
-                        onFocus={this.handleInputFocus}
+                        onFocus={(e) => {
+                          this.handleInputFocus(e, 2)
+                        }}
                         onInput={this.handleInput}
                         onChange={this.handleChange}
                         onScroll={this.handleTextAreaScroll}
@@ -973,7 +1148,10 @@ export default defineComponent({
                       {this.showPlaceholder1 ? (
                         <div
                           class={`${mergedClsPrefix}-input__placeholder`}
-                          style={this.placeholderStyle}
+                          style={[
+                            this.placeholderStyle as any,
+                            scrollContainerWidthStyle
+                          ]}
                           key="placeholder"
                         >
                           {this.mergedPlaceholder[0]}
@@ -1003,23 +1181,29 @@ export default defineComponent({
             <div class={`${mergedClsPrefix}-input__input`}>
               <input
                 type={
-                  this.type === 'password' &&
+                  type === 'password' &&
                   this.mergedShowPasswordOn &&
                   this.passwordVisible
                     ? 'text'
-                    : this.type
+                    : type
                 }
                 {...this.inputProps}
                 ref="inputElRef"
-                class={`${mergedClsPrefix}-input__input-el`}
-                style={this.textDecorationStyle[0] as any}
+                class={[
+                  `${mergedClsPrefix}-input__input-el`,
+                  this.inputProps?.class
+                ]}
+                style={[
+                  this.textDecorationStyle[0] as any,
+                  this.inputProps?.style
+                ]}
                 tabindex={
                   this.passivelyActivated && !this.activated ? -1 : undefined
                 }
                 placeholder={this.mergedPlaceholder[0]}
                 disabled={this.mergedDisabled}
-                maxlength={this.maxlength as any}
-                minlength={this.minlength as any}
+                maxlength={countGraphemes ? undefined : this.maxlength}
+                minlength={countGraphemes ? undefined : this.minlength}
                 value={
                   Array.isArray(this.mergedValue)
                     ? this.mergedValue[0]
@@ -1029,9 +1213,15 @@ export default defineComponent({
                 autofocus={this.autofocus}
                 size={this.attrSize}
                 onBlur={this.handleInputBlur}
-                onFocus={this.handleInputFocus}
-                onInput={(e) => this.handleInput(e, 0)}
-                onChange={(e) => this.handleChange(e, 0)}
+                onFocus={(e) => {
+                  this.handleInputFocus(e, 0)
+                }}
+                onInput={(e) => {
+                  this.handleInput(e, 0)
+                }}
+                onChange={(e) => {
+                  this.handleChange(e, 0)
+                }}
               />
               {this.showPlaceholder1 ? (
                 <div class={`${mergedClsPrefix}-input__placeholder`}>
@@ -1050,56 +1240,77 @@ export default defineComponent({
             </div>
           )}
           {!this.pair &&
-          ($slots.suffix ||
-            this.clearable ||
-            this.showCount ||
-            this.mergedShowPasswordOn ||
-            this.loading !== undefined) ? (
-            <div class={`${mergedClsPrefix}-input__suffix`}>
-              {[
-                this.clearable || $slots.clear ? (
-                  <NBaseClear
-                    clsPrefix={mergedClsPrefix}
-                    show={this.showClearButton}
-                    onClear={this.handleClear}
-                  >
-                    {{ default: () => $slots.clear?.() }}
-                  </NBaseClear>
-                ) : null,
-                !this.internalLoadingBeforeSuffix ? $slots.suffix?.() : null,
+            resolveWrappedSlot($slots.suffix, (children) => {
+              return children ||
+                this.clearable ||
+                this.showCount ||
+                this.mergedShowPasswordOn ||
                 this.loading !== undefined ? (
-                  <NBaseSuffix
-                    clsPrefix={mergedClsPrefix}
-                    loading={this.loading}
-                    showArrow={false}
-                    showClear={false}
-                    style={this.cssVars as CSSProperties}
-                  />
-                ) : null,
-                this.internalLoadingBeforeSuffix ? $slots.suffix?.() : null,
-                this.showCount && this.type !== 'textarea' ? (
-                  <WordCount>
-                    {{
-                      default: (props: unknown) => $slots.count?.(props)
-                    }}
-                  </WordCount>
-                ) : null,
-                this.mergedShowPasswordOn && this.type === 'password' ? (
-                  <NBaseIcon
-                    clsPrefix={mergedClsPrefix}
-                    class={`${mergedClsPrefix}-input__eye`}
-                    onMousedown={this.handlePasswordToggleMousedown}
-                    onClick={this.handlePasswordToggleClick}
-                  >
-                    {{
-                      default: () =>
-                        this.passwordVisible ? <EyeIcon /> : <EyeOffIcon />
-                    }}
-                  </NBaseIcon>
-                ) : null
-              ]}
-            </div>
-              ) : null}
+                <div class={`${mergedClsPrefix}-input__suffix`}>
+                  {[
+                    resolveWrappedSlot(
+                      $slots['clear-icon-placeholder'],
+                      (children) => {
+                        return (
+                          (this.clearable || children) && (
+                            <NBaseClear
+                              clsPrefix={mergedClsPrefix}
+                              show={this.showClearButton}
+                              onClear={this.handleClear}
+                            >
+                              {{
+                                placeholder: () => children,
+                                icon: () => this.$slots['clear-icon']?.()
+                              }}
+                            </NBaseClear>
+                          )
+                        )
+                      }
+                    ),
+                    !this.internalLoadingBeforeSuffix ? children : null,
+                    this.loading !== undefined ? (
+                      <NBaseSuffix
+                        clsPrefix={mergedClsPrefix}
+                        loading={this.loading}
+                        showArrow={false}
+                        showClear={false}
+                        style={this.cssVars as CSSProperties}
+                      />
+                    ) : null,
+                    this.internalLoadingBeforeSuffix ? children : null,
+                    this.showCount && this.type !== 'textarea' ? (
+                      <WordCount>
+                        {{
+                          default: (props: unknown) => $slots.count?.(props)
+                        }}
+                      </WordCount>
+                    ) : null,
+                    this.mergedShowPasswordOn && this.type === 'password' ? (
+                      <div
+                        class={`${mergedClsPrefix}-input__eye`}
+                        onMousedown={this.handlePasswordToggleMousedown}
+                        onClick={this.handlePasswordToggleClick}
+                      >
+                        {this.passwordVisible
+                          ? resolveSlot($slots['password-visible-icon'], () => [
+                              <NBaseIcon clsPrefix={mergedClsPrefix}>
+                                {{ default: () => <EyeIcon /> }}
+                              </NBaseIcon>
+                          ])
+                          : resolveSlot(
+                            $slots['password-invisible-icon'],
+                            () => [
+                                <NBaseIcon clsPrefix={mergedClsPrefix}>
+                                  {{ default: () => <EyeOffIcon /> }}
+                                </NBaseIcon>
+                            ]
+                          )}
+                      </div>
+                    ) : null
+                  ]}
+                </div>
+                  ) : null
+            })}
         </div>
         {/* pair input */}
         {this.pair ? (
@@ -1119,8 +1330,8 @@ export default defineComponent({
                 }
                 placeholder={this.mergedPlaceholder[1]}
                 disabled={this.mergedDisabled}
-                maxlength={this.maxlength as any}
-                minlength={this.minlength as any}
+                maxlength={countGraphemes ? undefined : this.maxlength}
+                minlength={countGraphemes ? undefined : this.minlength}
                 value={
                   Array.isArray(this.mergedValue)
                     ? this.mergedValue[1]
@@ -1129,9 +1340,15 @@ export default defineComponent({
                 readonly={this.readonly as any}
                 style={this.textDecorationStyle[1] as any}
                 onBlur={this.handleInputBlur}
-                onFocus={this.handleInputFocus}
-                onInput={(e) => this.handleInput(e, 1)}
-                onChange={(e) => this.handleChange(e, 1)}
+                onFocus={(e) => {
+                  this.handleInputFocus(e, 1)
+                }}
+                onInput={(e) => {
+                  this.handleInput(e, 1)
+                }}
+                onChange={(e) => {
+                  this.handleChange(e, 1)
+                }}
               />
               {this.showPlaceholder2 ? (
                 <div class={`${mergedClsPrefix}-input__placeholder`}>
@@ -1139,20 +1356,30 @@ export default defineComponent({
                 </div>
               ) : null}
             </div>
-            <div class={`${mergedClsPrefix}-input__suffix`}>
-              {[
-                this.clearable && (
-                  <NBaseClear
-                    clsPrefix={mergedClsPrefix}
-                    show={this.showClearButton}
-                    onClear={this.handleClear}
-                  >
-                    {{ default: () => $slots.clear?.() }}
-                  </NBaseClear>
-                ),
-                $slots.suffix?.()
-              ]}
-            </div>
+            {resolveWrappedSlot($slots.suffix, (children) => {
+              return (
+                (this.clearable || children) && (
+                  <div class={`${mergedClsPrefix}-input__suffix`}>
+                    {[
+                      this.clearable && (
+                        <NBaseClear
+                          clsPrefix={mergedClsPrefix}
+                          show={this.showClearButton}
+                          onClear={this.handleClear}
+                        >
+                          {{
+                            icon: () => $slots['clear-icon']?.(),
+                            placeholder: () =>
+                              $slots['clear-icon-placeholder']?.()
+                          }}
+                        </NBaseClear>
+                      ),
+                      children
+                    ]}
+                  </div>
+                )
+              )
+            })}
           </div>
         ) : null}
         {/* border */}
@@ -1162,9 +1389,17 @@ export default defineComponent({
         {this.mergedBordered ? (
           <div class={`${mergedClsPrefix}-input__state-border`} />
         ) : null}
-        {this.showCount && this.type === 'textarea' ? (
+        {this.showCount && type === 'textarea' ? (
           <WordCount>
-            {{ default: (props: unknown) => $slots.count?.(props) }}
+            {{
+              default: (props: unknown) => {
+                const { renderCount } = this
+                if (renderCount) {
+                  return renderCount(props as { value: string })
+                }
+                return $slots.count?.(props)
+              }
+            }}
           </WordCount>
         ) : null}
       </div>

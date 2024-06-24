@@ -3,26 +3,35 @@ import {
   h,
   inject,
   ref,
-  PropType,
-  toRef,
+  type PropType,
   watchEffect,
-  ImgHTMLAttributes
+  type ImgHTMLAttributes,
+  onMounted,
+  onBeforeUnmount,
+  provide,
+  toRef
 } from 'vue'
-import NImagePreview from './ImagePreview'
-import type { ImagePreviewInst } from './ImagePreview'
-import { imageGroupInjectionKey } from './ImageGroup'
+import { isImageSupportNativeLazy } from '../../_utils/env/is-native-lazy-load'
 import type { ExtractPublicPropTypes } from '../../_utils'
 import { useConfig } from '../../_mixins'
-import { imagePreviewSharedProps } from './interface'
+import { imageContextKey, imagePreviewSharedProps } from './interface'
+import { observeIntersection } from './utils'
+import type { IntersectionObserverOptions } from './utils'
+import type { ImagePreviewInst } from './ImagePreview'
+import { imageGroupInjectionKey } from './ImageGroup'
+import NImagePreview from './ImagePreview'
 
 export interface ImageInst {
   click: () => void
 }
 
-const imageProps = {
+export const imageProps = {
   alt: String,
   height: [String, Number] as PropType<string | number>,
   imgProps: Object as PropType<ImgHTMLAttributes>,
+  previewedImgProps: Object as PropType<ImgHTMLAttributes>,
+  lazy: Boolean,
+  intersectionObserverOptions: Object as PropType<IntersectionObserverOptions>,
   objectFit: {
     type: String as PropType<
     'fill' | 'contain' | 'cover' | 'none' | 'scale-down'
@@ -49,7 +58,6 @@ export default defineComponent({
   setup (props) {
     const imageRef = ref<HTMLImageElement | null>(null)
     const showErrorRef = ref(false)
-    const imgPropsRef = toRef(props, 'imgProps')
     const previewInstRef = ref<ImagePreviewInst | null>(null)
     const imageGroupHandle = inject(imageGroupInjectionKey, null)
     const { mergedClsPrefixRef } = imageGroupHandle || useConfig(props)
@@ -70,19 +78,61 @@ export default defineComponent({
         previewInst.toggleShow()
       }
     }
+
+    const shouldStartLoadingRef = ref(!props.lazy)
+
+    onMounted(() => {
+      imageRef.value?.setAttribute(
+        'data-group-id',
+        imageGroupHandle?.groupId || ''
+      )
+    })
+
+    onMounted(() => {
+      // Use IntersectionObserver if lazy and intersectionObserverOptions is set
+      if (props.lazy && props.intersectionObserverOptions) {
+        let unobserve: (() => void) | undefined
+        const stopWatchHandle = watchEffect(() => {
+          unobserve?.()
+          unobserve = undefined
+          unobserve = observeIntersection(
+            imageRef.value,
+            props.intersectionObserverOptions,
+            shouldStartLoadingRef
+          )
+        })
+        onBeforeUnmount(() => {
+          stopWatchHandle()
+          unobserve?.()
+        })
+      }
+    })
+
     watchEffect(() => {
-      void props.src
-      void props.imgProps?.src
+      void (props.src || props.imgProps?.src)
       showErrorRef.value = false
+    })
+
+    const loadedRef = ref(false)
+
+    provide(imageContextKey, {
+      previewedImgPropsRef: toRef(props, 'previewedImgProps')
     })
     return {
       mergedClsPrefix: mergedClsPrefixRef,
       groupId: imageGroupHandle?.groupId,
       previewInstRef,
       imageRef,
-      imgProps: imgPropsRef,
+
       showError: showErrorRef,
+      shouldStartLoading: shouldStartLoadingRef,
+      loaded: loadedRef,
+      mergedOnClick: (e: MouseEvent) => {
+        exposedMethods.click()
+        props.imgProps?.onClick?.(e)
+      },
       mergedOnError: (e: Event) => {
+        if (!shouldStartLoadingRef.value) return
         showErrorRef.value = true
         const { onError, imgProps: { onError: imgPropsOnError } = {} } = props
         onError?.(e)
@@ -92,31 +142,49 @@ export default defineComponent({
         const { onLoad, imgProps: { onLoad: imgPropsOnLoad } = {} } = props
         onLoad?.(e)
         imgPropsOnLoad?.(e)
+        loadedRef.value = true
       },
       ...exposedMethods
     }
   },
   render () {
-    const { mergedClsPrefix, imgProps = {}, $attrs } = this
-    const imgNode = (
-      <img
-        {...imgProps}
-        class={[this.groupId, imgProps.class]}
-        ref="imageRef"
-        width={this.width || imgProps.width}
-        height={this.height || imgProps.height}
-        src={this.showError ? this.fallbackSrc : this.src || imgProps.src}
-        alt={this.alt || imgProps.alt}
-        aria-label={this.alt || imgProps.alt}
-        onClick={this.click}
-        onError={this.mergedOnError}
-        onLoad={this.mergedOnLoad}
-        style={[imgProps.style || '', { objectFit: this.objectFit }]}
-        data-error={this.showError}
-        data-preview-src={this.previewSrc || this.src}
-      />
-    )
+    const { mergedClsPrefix, imgProps = {}, loaded, $attrs, lazy } = this
 
+    const placeholderNode = this.$slots.placeholder?.()
+    const loadSrc = this.src || imgProps.src
+
+    const imgNode = h('img', {
+      ...imgProps,
+      ref: 'imageRef',
+      width: this.width || imgProps.width,
+      height: this.height || imgProps.height,
+      src: this.showError
+        ? this.fallbackSrc
+        : lazy && this.intersectionObserverOptions
+          ? this.shouldStartLoading
+            ? loadSrc
+            : undefined
+          : loadSrc,
+      alt: this.alt || imgProps.alt,
+      'aria-label': this.alt || imgProps.alt,
+      onClick: this.mergedOnClick,
+      onError: this.mergedOnError,
+      onLoad: this.mergedOnLoad,
+      // If interseciton observer options is set, do not use native lazy
+      loading:
+        isImageSupportNativeLazy && lazy && !this.intersectionObserverOptions
+          ? 'lazy'
+          : 'eager',
+      style: [
+        imgProps.style || '',
+        placeholderNode && !loaded
+          ? { height: '0', width: '0', visibility: 'hidden' }
+          : '',
+        { objectFit: this.objectFit }
+      ],
+      'data-error': this.showError,
+      'data-preview-src': this.previewSrc || this.src
+    })
     return (
       <div
         {...$attrs}
@@ -138,12 +206,15 @@ export default defineComponent({
             ref="previewInstRef"
             showToolbar={this.showToolbar}
             showToolbarTooltip={this.showToolbarTooltip}
+            renderToolbar={this.renderToolbar}
           >
             {{
-              default: () => imgNode
+              default: () => imgNode,
+              toolbar: () => this.$slots.toolbar?.()
             }}
           </NImagePreview>
         )}
+        {!loaded && placeholderNode}
       </div>
     )
   }

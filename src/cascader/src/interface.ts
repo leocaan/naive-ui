@@ -1,8 +1,8 @@
-import { CheckStrategy, TreeNode } from 'treemate'
+import type { CheckStrategy, TreeNode } from 'treemate'
 import type { MergedTheme } from '../../_mixins'
 import type { NLocale } from '../../locales'
 import type { CascaderTheme } from '../styles'
-import { Ref, VNodeChild } from 'vue'
+import type { CSSProperties, Ref, Slots, VNode, VNodeChild } from 'vue'
 import { createInjectionKey } from '../../_utils'
 
 export type ValueAtom = string | number
@@ -36,11 +36,11 @@ export type OnUpdateValue = (
   string[] &
   number[] &
   Array<string | number> &
-    (string | null) &
-    (number | null) &
-    (string[] | null) &
-    (number[] | null) &
-    (Array<string | number> | null),
+  (string | null) &
+  (number | null) &
+  (string[] | null) &
+  (number[] | null) &
+  (Array<string | number> | null),
   option: null &
   CascaderOption &
   CascaderOption[] &
@@ -57,6 +57,7 @@ export type OnUpdateValueImpl = (
 export type MenuModel = TmNode[][]
 
 export interface CascaderInjection {
+  slots: Slots
   mergedClsPrefixRef: Ref<string>
   mergedThemeRef: Ref<MergedTheme<CascaderTheme>>
   mergedValueRef: Ref<Value | null>
@@ -77,6 +78,26 @@ export interface CascaderInjection {
   virtualScrollRef: Ref<boolean>
   optionHeightRef: Ref<string>
   labelFieldRef: Ref<string>
+  showCheckboxRef: Ref<boolean>
+  getColumnStyleRef: Ref<
+  ((detail: { level: number }) => string | CSSProperties) | undefined
+  >
+  renderPrefixRef: Ref<
+  | ((info: {
+    option: CascaderOption
+    checked: boolean
+    node: VNode | null
+  }) => VNodeChild)
+  | undefined
+  >
+  renderSuffixRef: Ref<
+  | ((info: {
+    option: CascaderOption
+    checked: boolean
+    node: VNode | null
+  }) => VNodeChild)
+  | undefined
+  >
   syncCascaderMenuPosition: () => void
   syncSelectMenuPosition: () => void
   updateKeyboardKey: (value: Key | null) => void
@@ -89,8 +110,9 @@ export interface CascaderInjection {
   handleSelectMenuClickOutside: (e: MouseEvent) => void
   handleCascaderMenuClickOutside: (e: MouseEvent) => void
   renderLabelRef: Ref<
-    ((option: CascaderOption, checked: boolean) => VNodeChild) | undefined
+  ((option: CascaderOption, checked: boolean) => VNodeChild) | undefined
   >
+  clearPattern: () => void
 }
 
 export interface CascaderSubmenuInstance {
@@ -118,4 +140,9 @@ export const cascaderInjectionKey =
 export interface CascaderInst {
   focus: () => void
   blur: () => void
+  getCheckedData: () => { keys: Key[], options: Array<CascaderOption | null> }
+  getIndeterminateData: () => {
+    keys: Key[]
+    options: Array<CascaderOption | null>
+  }
 }

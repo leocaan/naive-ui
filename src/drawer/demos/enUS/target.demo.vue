@@ -1,7 +1,7 @@
 <markdown>
 # Customize display area
 
-You can customize display area by `to` prop. Remember to set `:trap-focus="false"`, otherwise content outside drawer won't be focusable.
+You can customize display area by `to` prop. Remember to set `:trap-focus="false"` and `:block-scroll="false"`, otherwise content outside drawer won't be focusable and body won't be scrollable.
 </markdown>
 
 <template>
@@ -51,7 +51,7 @@ You can customize display area by `to` prop. Remember to set `:trap-focus="false
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue'
-import { DrawerPlacement } from 'naive-ui'
+import type { DrawerPlacement } from 'naive-ui'
 
 export default defineComponent({
   setup () {

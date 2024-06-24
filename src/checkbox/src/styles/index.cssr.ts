@@ -1,7 +1,8 @@
 import { c, cB, cE, cM, insideModal, insidePopover } from '../../../_utils/cssr'
-import iconSwitchTransition from '../../../_styles/transitions/icon-switch.cssr'
+import { iconSwitchTransition } from '../../../_styles/transitions/icon-switch.cssr'
 
 // vars:
+// --n-label-line-height
 // --n-bezier
 // --n-size
 // --n-border
@@ -12,8 +13,8 @@ import iconSwitchTransition from '../../../_styles/transitions/icon-switch.cssr'
 // --n-box-shadow-focus
 // --n-color
 // --n-color-checked
-// --n-color-table-header
-// --n-color-table-header-modal
+// --n-color-table
+// --n-color-table-modal
 // --n-color-disabled
 // --n-color-disabled-checked
 // --n-text-color
@@ -26,21 +27,20 @@ import iconSwitchTransition from '../../../_styles/transitions/icon-switch.cssr'
 // --n-label-padding
 export default c([
   cB('checkbox', `
-    line-height: 1;
     font-size: var(--n-font-size);
     outline: none;
     cursor: pointer;
     display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    vertical-align: middle;
-    --n-merged-color-table-header: var(--n-color-table-header);
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    word-break: break-word;
+    line-height: var(--n-size);
+    --n-merged-color-table: var(--n-color-table);
   `, [
+    cM('show-label', 'line-height: var(--n-label-line-height);'),
     c('&:hover', [
       cB('checkbox-box', [
-        cE('border', {
-          border: 'var(--n-border-checked)'
-        })
+        cE('border', 'border: var(--n-border-checked);')
       ])
     ]),
     c('&:focus:not(:active)', [
@@ -51,9 +51,9 @@ export default c([
         `)
       ])
     ]),
-    cM('table-header', [
+    cM('inside-table', [
       cB('checkbox-box', `
-        background-color: var(--n-merged-color-table-header);
+        background-color: var(--n-merged-color-table);
       `)
     ]),
     cM('checked', [
@@ -122,29 +122,39 @@ export default c([
       cB('checkbox-box', `
         background-color: var(--n-color-disabled);
       `, [
-        cE('border', {
-          border: 'var(--n-border-disabled)'
-        }),
+        cE('border', `
+          border: var(--n-border-disabled);
+        `),
         cB('checkbox-icon', [
-          c('.check-icon, .line-icon', {
-            fill: 'var(--n-check-mark-color-disabled)'
-          })
+          c('.check-icon, .line-icon', `
+            fill: var(--n-check-mark-color-disabled);
+          `)
         ])
       ]),
-      cE('label', {
-        color: 'var(--n-text-color-disabled)'
-      })
+      cE('label', `
+        color: var(--n-text-color-disabled);
+      `)
     ]),
+    cB('checkbox-box-wrapper', `
+      position: relative;
+      width: var(--n-size);
+      flex-shrink: 0;
+      flex-grow: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    `),
     cB('checkbox-box', `
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
       height: var(--n-size);
       width: var(--n-size);
       display: inline-block;
       box-sizing: border-box;
       border-radius: var(--n-border-radius);
       background-color: var(--n-color);
-      position: relative;
-      transition:
-        background-color 0.3s var(--n-bezier);
+      transition: background-color 0.3s var(--n-bezier);
     `, [
       cE('border', `
         transition:
@@ -190,7 +200,9 @@ export default c([
       color: var(--n-text-color);
       transition: color .3s var(--n-bezier);
       user-select: none;
+      -webkit-user-select: none;
       padding: var(--n-label-padding);
+      font-weight: var(--n-label-font-weight);
     `, [
       c('&:empty', {
         display: 'none'
@@ -200,13 +212,13 @@ export default c([
   // modal table header checkbox
   insideModal(
     cB('checkbox', `
-      --n-merged-color-table-header: var(--n-color-table-header-modal);
+      --n-merged-color-table: var(--n-color-table-modal);
     `)
   ),
   // popover table header checkbox
   insidePopover(
     cB('checkbox', `
-      --n-merged-color-table-header: var(--n-color-table-header-popover);
+      --n-merged-color-table: var(--n-color-table-popover);
     `)
   )
 ])

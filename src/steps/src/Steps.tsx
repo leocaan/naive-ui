@@ -1,25 +1,21 @@
 import {
   h,
   defineComponent,
-  VNode,
+  type VNode,
   provide,
-  PropType,
-  VNodeChild,
-  ExtractPropTypes,
-  Ref,
-  Slots
+  type PropType,
+  type VNodeChild,
+  type ExtractPropTypes,
+  type Ref,
+  type Slots
 } from 'vue'
 import type { MergedTheme, ThemeProps } from '../../_mixins'
-import { useConfig, useTheme } from '../../_mixins'
+import { useConfig, useTheme, useRtl } from '../../_mixins'
+import { createInjectionKey, flatten, getSlot } from '../../_utils'
+import type { ExtractPublicPropTypes, MaybeArray } from '../../_utils'
+import type { StepsTheme } from '../styles'
 import { stepsLight } from '../styles'
 import style from './styles/index.cssr'
-import {
-  createInjectionKey,
-  ExtractPublicPropTypes,
-  flatten,
-  getSlot
-} from '../../_utils'
-import type { StepsTheme } from '../styles'
 
 function stepWithIndex (step: VNodeChild, i: number): VNode | null {
   if (typeof step !== 'object' || step === null || Array.isArray(step)) {
@@ -34,7 +30,7 @@ function stepsWithIndex (steps: VNodeChild[]): Array<VNode | null> {
   return steps.map((step, i) => stepWithIndex(step, i))
 }
 
-const stepsProps = {
+export const stepsProps = {
   ...(useTheme.props as ThemeProps<StepsTheme>),
   current: Number,
   status: {
@@ -45,7 +41,13 @@ const stepsProps = {
     type: String as PropType<'small' | 'medium'>,
     default: 'medium'
   },
-  vertical: Boolean
+  vertical: Boolean,
+  'onUpdate:current': [Function, Array] as PropType<
+  MaybeArray<(current: number) => void>
+  >,
+  onUpdateCurrent: [Function, Array] as PropType<
+  MaybeArray<(current: number) => void>
+  >
 }
 
 export interface StepsInjection {
@@ -63,7 +65,8 @@ export default defineComponent({
   name: 'Steps',
   props: stepsProps,
   setup (props, { slots }) {
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, mergedRtlRef } = useConfig(props)
+    const rtlEnabledRef = useRtl('Steps', mergedRtlRef, mergedClsPrefixRef)
     const themeRef = useTheme(
       'Steps',
       '-steps',
@@ -79,7 +82,8 @@ export default defineComponent({
       stepsSlots: slots
     })
     return {
-      mergedClsPrefix: mergedClsPrefixRef
+      mergedClsPrefix: mergedClsPrefixRef,
+      rtlEnabled: rtlEnabledRef
     }
   },
   render () {
@@ -88,6 +92,7 @@ export default defineComponent({
       <div
         class={[
           `${mergedClsPrefix}-steps`,
+          this.rtlEnabled && `${mergedClsPrefix}-steps--rtl`,
           this.vertical && `${mergedClsPrefix}-steps--vertical`
         ]}
       >

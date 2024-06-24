@@ -5,7 +5,8 @@ const plPL: NLocale = {
   global: {
     undo: 'Cofnij',
     redo: 'Ponów',
-    confirm: 'Potwierdź'
+    confirm: 'Potwierdź',
+    clear: 'Wyczyść'
   },
   Popconfirm: {
     positiveText: 'Potwierdź',
@@ -30,6 +31,7 @@ const plPL: NLocale = {
     dateFormat: 'yyyy-MM-dd',
     dateTimeFormat: 'yyyy-MM-dd HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Wyczyść',
     now: 'Teraz',
     confirm: 'Potwierdź',
@@ -40,10 +42,14 @@ const plPL: NLocale = {
     monthPlaceholder: 'Wybierz miesiąc',
     yearPlaceholder: 'Wybierz rok',
     quarterPlaceholder: 'Wybierz kwartał',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Data rozpoczęcia',
     endDatePlaceholder: 'Data zakończenia',
     startDatetimePlaceholder: 'Data i godzina rozpoczęcia',
     endDatetimePlaceholder: 'Data i godzina zakończenia',
+    // FIXME: translation needed
+    startMonthPlaceholder: 'Start Month',
+    endMonthPlaceholder: 'End Month',
     monthBeforeYear: true,
     firstDayOfWeek: 6,
     today: 'Dziś'
@@ -54,9 +60,17 @@ const plPL: NLocale = {
     confirm: 'Potwierdź',
     clear: 'Wyczyść'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Źródło',
     targetTitle: 'Cel'
+  },
+  // TODO: translation
+  Transfer: {
+    selectAll: 'Select all',
+    unselectAll: 'Unselect all',
+    clearAll: 'Clear',
+    total: (num: number): string => `Total ${num} items`,
+    selected: (num: number): string => `${num} items selected`
   },
   Empty: {
     description: 'Brak danych'
@@ -68,7 +82,8 @@ const plPL: NLocale = {
     placeholder: 'Wybierz czas',
     positiveText: 'Potwierdź',
     negativeText: 'Anuluj',
-    now: 'Teraz'
+    now: 'Teraz',
+    clear: 'Wyczyść'
   },
   Pagination: {
     goto: 'Idź do',
@@ -106,7 +121,10 @@ const plPL: NLocale = {
     tipClockwise: 'Zgodnie z ruchem wskazówek zegara',
     tipZoomOut: 'Powiększ',
     tipZoomIn: 'Pomniejsz',
-    tipClose: 'Zamknij (Esc)'
+    tipDownload: 'Pobierz',
+    tipClose: 'Zamknij (Esc)',
+    // TODO: translation
+    tipOriginalSize: 'Zoom to original size'
   }
 }
 

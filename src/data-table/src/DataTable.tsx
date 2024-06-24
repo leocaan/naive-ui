@@ -4,165 +4,39 @@ import {
   defineComponent,
   ref,
   provide,
-  PropType,
-  ExtractPropTypes,
   toRef,
-  CSSProperties,
+  type CSSProperties,
   Transition,
   watchEffect
 } from 'vue'
 import { createId } from 'seemly'
-import { useConfig, useLocale, useTheme } from '../../_mixins'
-import type { ThemeProps } from '../../_mixins'
+import {
+  useConfig,
+  useRtl,
+  useLocale,
+  useTheme,
+  useThemeClass
+} from '../../_mixins'
 import { NBaseLoading } from '../../_internal'
 import { NPagination } from '../../pagination'
-import type { PaginationProps } from '../../pagination'
-import { createKey, warnOnce } from '../../_utils'
-import type { MaybeArray, ExtractPublicPropTypes } from '../../_utils'
+import { createKey, download, resolveSlot, warnOnce } from '../../_utils'
 import { dataTableLight } from '../styles'
-import type { DataTableTheme } from '../styles'
 import MainTable from './MainTable'
 import { useCheck } from './use-check'
 import { useTableData } from './use-table-data'
 import { useScroll } from './use-scroll'
+import { useResizable } from './use-resizable'
 import type {
-  CreateRowClassName,
-  CreateRowKey,
-  OnUpdateCheckedRowKeys,
-  OnUpdateSorter,
   RowKey,
-  TableColumns,
-  RowData,
-  OnUpdateFilters,
   MainTableRef,
   DataTableInst,
-  OnUpdateExpandedRowKeys,
-  CreateSummary,
-  CreateRowProps
+  CsvOptionsType
 } from './interface'
-import { dataTableInjectionKey } from './interface'
+import { dataTableInjectionKey, dataTableProps } from './interface'
 import { useGroupHeader } from './use-group-header'
 import { useExpand } from './use-expand'
 import style from './styles/index.cssr'
-
-export const dataTableProps = {
-  ...(useTheme.props as ThemeProps<DataTableTheme>),
-  pagination: {
-    type: [Object, Boolean] as PropType<false | PaginationProps>,
-    default: false
-  },
-  minHeight: [Number, String] as PropType<string | number>,
-  maxHeight: [Number, String] as PropType<string | number>,
-  // Use any type as row data to make prop data acceptable
-  columns: {
-    type: Array as PropType<TableColumns<any>>,
-    default: () => []
-  },
-  rowClassName: [String, Function] as PropType<
-  string | CreateRowClassName<any>
-  >,
-  rowProps: Function as PropType<CreateRowProps<any>>,
-  rowKey: Function as PropType<CreateRowKey<any>>,
-  summary: [Function] as PropType<CreateSummary<any>>,
-  data: {
-    type: Array as PropType<RowData[]>,
-    default: () => []
-  },
-  loading: Boolean,
-  bordered: {
-    type: Boolean as PropType<boolean | undefined>,
-    default: undefined
-  },
-  bottomBordered: {
-    type: Boolean as PropType<boolean | undefined>,
-    default: undefined
-  },
-  striped: Boolean,
-  scrollX: [Number, String] as PropType<string | number>,
-  defaultCheckedRowKeys: {
-    type: Array as PropType<RowKey[]>,
-    default: () => []
-  },
-  checkedRowKeys: Array as PropType<RowKey[]>,
-  singleLine: {
-    type: Boolean,
-    default: true
-  },
-  singleColumn: Boolean,
-  size: {
-    type: String as PropType<'small' | 'medium' | 'large'>,
-    default: 'medium'
-  },
-  remote: Boolean,
-  defaultExpandedRowKeys: {
-    type: Array as PropType<RowKey[]>,
-    default: []
-  },
-  expandedRowKeys: Array as PropType<RowKey[]>,
-  virtualScroll: Boolean,
-  tableLayout: {
-    type: String as PropType<'auto' | 'fixed'>,
-    default: 'auto'
-  },
-  cascade: {
-    type: Boolean,
-    default: true
-  },
-  childrenKey: {
-    type: String,
-    default: 'children'
-  },
-  indent: {
-    type: Number,
-    default: 16
-  },
-  flexHeight: Boolean,
-  'onUpdate:page': [Function, Array] as PropType<
-  PaginationProps['onUpdate:page']
-  >,
-  onUpdatePage: [Function, Array] as PropType<PaginationProps['onUpdate:page']>,
-  'onUpdate:pageSize': [Function, Array] as PropType<
-  PaginationProps['onUpdate:pageSize']
-  >,
-  onUpdatePageSize: [Function, Array] as PropType<
-  PaginationProps['onUpdate:pageSize']
-  >,
-  'onUpdate:sorter': [Function, Array] as PropType<MaybeArray<OnUpdateSorter>>,
-  onUpdateSorter: [Function, Array] as PropType<MaybeArray<OnUpdateSorter>>,
-  'onUpdate:filters': [Function, Array] as PropType<
-  MaybeArray<OnUpdateFilters>
-  >,
-  onUpdateFilters: [Function, Array] as PropType<MaybeArray<OnUpdateFilters>>,
-  'onUpdate:checkedRowKeys': [Function, Array] as PropType<
-  MaybeArray<OnUpdateCheckedRowKeys>
-  >,
-  onUpdateCheckedRowKeys: [Function, Array] as PropType<
-  MaybeArray<OnUpdateCheckedRowKeys>
-  >,
-  'onUpdate:expandedRowKeys': [Function, Array] as PropType<
-  MaybeArray<OnUpdateExpandedRowKeys>
-  >,
-  onUpdateExpandedRowKeys: [Function, Array] as PropType<
-  MaybeArray<OnUpdateExpandedRowKeys>
-  >,
-  // deprecated
-  onPageChange: [Function, Array] as PropType<PaginationProps['onUpdate:page']>,
-  onPageSizeChange: [Function, Array] as PropType<
-  PaginationProps['onUpdate:pageSize']
-  >,
-  onSorterChange: [Function, Array] as PropType<
-  MaybeArray<OnUpdateSorter> | undefined
-  >,
-  onFiltersChange: [Function, Array] as PropType<
-  MaybeArray<OnUpdateFilters> | undefined
-  >,
-  onCheckedRowKeysChange: [Function, Array] as PropType<
-  MaybeArray<OnUpdateCheckedRowKeys> | undefined
-  >
-} as const
-
-export type DataTableProps = ExtractPublicPropTypes<typeof dataTableProps>
-export type DataTableSetupProps = ExtractPropTypes<typeof dataTableProps>
+import { generateCsv } from './utils'
 
 export default defineComponent({
   name: 'DataTable',
@@ -204,7 +78,13 @@ export default defineComponent({
       })
     }
 
-    const { mergedBorderedRef, mergedClsPrefixRef } = useConfig(props)
+    const {
+      mergedBorderedRef,
+      mergedClsPrefixRef,
+      inlineThemeDisabled,
+      mergedRtlRef
+    } = useConfig(props)
+    const rtlEnabledRef = useRtl('DataTable', mergedRtlRef, mergedClsPrefixRef)
     const mergedBottomBorderedRef = computed(() => {
       const { bottomBordered } = props
       // do not add bottom bordered class if bordered is true
@@ -222,10 +102,25 @@ export default defineComponent({
       mergedClsPrefixRef
     )
     const bodyWidthRef = ref<number | null>(null)
-    const scrollPartRef = ref<'head' | 'body'>('body')
     const mainTableInstRef = ref<MainTableRef | null>(null)
+    const { getResizableWidth, clearResizableWidth, doUpdateResizableWidth } =
+      useResizable()
     const { rowsRef, colsRef, dataRelatedColsRef, hasEllipsisRef } =
-      useGroupHeader(props)
+      useGroupHeader(props, getResizableWidth)
+
+    const downloadCsv = (options?: CsvOptionsType): void => {
+      const { fileName = 'data.csv', keepOriginalData = false } = options || {}
+      const data = keepOriginalData ? props.data : rawPaginatedDataRef.value
+      const csvData = generateCsv(props.columns, data)
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8' })
+      const downloadUrl = URL.createObjectURL(blob)
+      download(
+        downloadUrl,
+        fileName.endsWith('.csv') ? fileName : `${fileName}.csv`
+      )
+      URL.revokeObjectURL(downloadUrl)
+    }
+
     const {
       treeMateRef,
       mergedCurrentPageRef,
@@ -236,8 +131,10 @@ export default defineComponent({
       mergedPaginationRef,
       mergedFilterStateRef,
       mergedSortStateRef,
-      firstContentfulColIndexRef,
+      childTriggerColIndexRef,
+      doUpdatePage,
       doUpdateFilters,
+      onUnstableColumnResize,
       deriveNextSorter,
       filter,
       filters,
@@ -263,10 +160,12 @@ export default defineComponent({
       paginatedDataRef
     })
     const {
+      stickyExpandedRowsRef,
       mergedExpandedRowKeysRef,
       renderExpandRef,
+      expandableRef,
       doUpdateExpandedRowKeys
-    } = useExpand(props)
+    } = useExpand(props, treeMateRef)
     const {
       handleTableBodyScroll,
       handleTableHeaderScroll,
@@ -281,7 +180,6 @@ export default defineComponent({
       fixedColumnLeftMapRef,
       fixedColumnRightMapRef
     } = useScroll(props, {
-      scrollPartRef,
       bodyWidthRef,
       mainTableInstRef,
       mergedCurrentPageRef
@@ -302,9 +200,13 @@ export default defineComponent({
       return props.tableLayout
     })
     provide(dataTableInjectionKey, {
+      props,
+      treeMateRef,
+      renderExpandIconRef: toRef(props, 'renderExpandIcon'),
+      loadingKeySetRef: ref(new Set<RowKey>()),
       slots,
       indentRef: toRef(props, 'indent'),
-      firstContentfulColIndexRef,
+      childTriggerColIndexRef,
       bodyWidthRef,
       componentId: createId(),
       hoverKeyRef,
@@ -333,7 +235,8 @@ export default defineComponent({
       mergedExpandedRowKeysRef,
       mergedInderminateRowKeySetRef,
       localeRef,
-      scrollPartRef,
+      expandableRef,
+      stickyExpandedRowsRef,
       rowKeyRef: toRef(props, 'rowKey'),
       renderExpandRef,
       summaryRef: toRef(props, 'summary'),
@@ -345,27 +248,32 @@ export default defineComponent({
         return selectionColumn?.options
       }),
       rawPaginatedDataRef,
-      hasChildrenRef: computed(() => {
-        return treeMateRef.value.maxLevel > 0
-      }),
       filterMenuCssVarsRef: computed(() => {
         const {
           self: { actionDividerColor, actionPadding, actionButtonMargin }
         } = themeRef.value
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         return {
           '--n-action-padding': actionPadding,
           '--n-action-button-margin': actionButtonMargin,
           '--n-action-divider-color': actionDividerColor
-        } as CSSProperties
+        } satisfies CSSProperties
       }),
+      onLoadRef: toRef(props, 'onLoad'),
       mergedTableLayoutRef,
       maxHeightRef: toRef(props, 'maxHeight'),
       minHeightRef: toRef(props, 'minHeight'),
       flexHeightRef: toRef(props, 'flexHeight'),
       headerCheckboxDisabledRef,
+      paginationBehaviorOnFilterRef: toRef(props, 'paginationBehaviorOnFilter'),
+      summaryPlacementRef: toRef(props, 'summaryPlacement'),
+      scrollbarPropsRef: toRef(props, 'scrollbarProps'),
       syncScrollState,
+      doUpdatePage,
       doUpdateFilters,
+      getResizableWidth,
+      onUnstableColumnResize,
+      clearResizableWidth,
+      doUpdateResizableWidth,
       deriveNextSorter,
       doCheck,
       doUncheck,
@@ -374,7 +282,8 @@ export default defineComponent({
       doUpdateExpandedRowKeys,
       handleTableHeaderScroll,
       handleTableBodyScroll,
-      setHeaderScrollLeft
+      setHeaderScrollLeft,
+      renderCell: toRef(props, 'renderCell')
     })
     const exposedMethods: DataTableInst = {
       filter,
@@ -383,112 +292,149 @@ export default defineComponent({
       clearSorter,
       page,
       sort,
-      clearFilter
+      clearFilter,
+      downloadCsv,
+      scrollTo: (arg0: any, arg1?: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        mainTableInstRef.value?.scrollTo(arg0, arg1)
+      }
     }
+    const cssVarsRef = computed(() => {
+      const { size } = props
+      const {
+        common: { cubicBezierEaseInOut },
+        self: {
+          borderColor,
+          tdColorHover,
+          thColor,
+          thColorHover,
+          tdColor,
+          tdTextColor,
+          thTextColor,
+          thFontWeight,
+          thButtonColorHover,
+          thIconColor,
+          thIconColorActive,
+          filterSize,
+          borderRadius,
+          lineHeight,
+          tdColorModal,
+          thColorModal,
+          borderColorModal,
+          thColorHoverModal,
+          tdColorHoverModal,
+          borderColorPopover,
+          thColorPopover,
+          tdColorPopover,
+          tdColorHoverPopover,
+          thColorHoverPopover,
+          paginationMargin,
+          emptyPadding,
+          boxShadowAfter,
+          boxShadowBefore,
+          sorterSize,
+          resizableContainerSize,
+          resizableSize,
+          loadingColor,
+          loadingSize,
+          opacityLoading,
+          tdColorStriped,
+          tdColorStripedModal,
+          tdColorStripedPopover,
+          [createKey('fontSize', size)]: fontSize,
+          [createKey('thPadding', size)]: thPadding,
+          [createKey('tdPadding', size)]: tdPadding
+        }
+      } = themeRef.value
+      return {
+        '--n-font-size': fontSize,
+        '--n-th-padding': thPadding,
+        '--n-td-padding': tdPadding,
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-border-radius': borderRadius,
+        '--n-line-height': lineHeight,
+        '--n-border-color': borderColor,
+        '--n-border-color-modal': borderColorModal,
+        '--n-border-color-popover': borderColorPopover,
+        '--n-th-color': thColor,
+        '--n-th-color-hover': thColorHover,
+        '--n-th-color-modal': thColorModal,
+        '--n-th-color-hover-modal': thColorHoverModal,
+        '--n-th-color-popover': thColorPopover,
+        '--n-th-color-hover-popover': thColorHoverPopover,
+        '--n-td-color': tdColor,
+        '--n-td-color-hover': tdColorHover,
+        '--n-td-color-modal': tdColorModal,
+        '--n-td-color-hover-modal': tdColorHoverModal,
+        '--n-td-color-popover': tdColorPopover,
+        '--n-td-color-hover-popover': tdColorHoverPopover,
+        '--n-th-text-color': thTextColor,
+        '--n-td-text-color': tdTextColor,
+        '--n-th-font-weight': thFontWeight,
+        '--n-th-button-color-hover': thButtonColorHover,
+        '--n-th-icon-color': thIconColor,
+        '--n-th-icon-color-active': thIconColorActive,
+        '--n-filter-size': filterSize,
+        '--n-pagination-margin': paginationMargin,
+        '--n-empty-padding': emptyPadding,
+        '--n-box-shadow-before': boxShadowBefore,
+        '--n-box-shadow-after': boxShadowAfter,
+        '--n-sorter-size': sorterSize,
+        '--n-resizable-container-size': resizableContainerSize,
+        '--n-resizable-size': resizableSize,
+        '--n-loading-size': loadingSize,
+        '--n-loading-color': loadingColor,
+        '--n-opacity-loading': opacityLoading,
+        '--n-td-color-striped': tdColorStriped,
+        '--n-td-color-striped-modal': tdColorStripedModal,
+        '--n-td-color-striped-popover': tdColorStripedPopover
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'data-table',
+        computed(() => props.size[0]),
+        cssVarsRef,
+        props
+      )
+      : undefined
+    const mergedShowPaginationRef = computed(() => {
+      if (!props.pagination) return false
+      if (props.paginateSinglePage) return true
+      const mergedPagination = mergedPaginationRef.value
+      const { pageCount } = mergedPagination
+      if (pageCount !== undefined) return pageCount > 1
+      return (
+        mergedPagination.itemCount &&
+        mergedPagination.pageSize &&
+        mergedPagination.itemCount > mergedPagination.pageSize
+      )
+    })
     return {
       mainTableInstRef,
       mergedClsPrefix: mergedClsPrefixRef,
+      rtlEnabled: rtlEnabledRef,
       mergedTheme: themeRef,
       paginatedData: paginatedDataRef,
       mergedBordered: mergedBorderedRef,
       mergedBottomBordered: mergedBottomBorderedRef,
       mergedPagination: mergedPaginationRef,
-      ...exposedMethods,
-      cssVars: computed(() => {
-        const { size } = props
-        const {
-          common: { cubicBezierEaseInOut },
-          self: {
-            borderColor,
-            tdColorHover,
-            thColor,
-            thColorHover,
-            tdColor,
-            tdTextColor,
-            thTextColor,
-            thFontWeight,
-            thButtonColorHover,
-            thIconColor,
-            thIconColorActive,
-            filterSize,
-            borderRadius,
-            lineHeight,
-            tdColorModal,
-            thColorModal,
-            borderColorModal,
-            thColorHoverModal,
-            tdColorHoverModal,
-            borderColorPopover,
-            thColorPopover,
-            tdColorPopover,
-            tdColorHoverPopover,
-            thColorHoverPopover,
-            paginationMargin,
-            emptyPadding,
-            boxShadowAfter,
-            boxShadowBefore,
-            sorterSize,
-            loadingColor,
-            loadingSize,
-            opacityLoading,
-            tdColorStriped,
-            tdColorStripedModal,
-            tdColorStripedPopover,
-            [createKey('fontSize', size)]: fontSize,
-            [createKey('thPadding', size)]: thPadding,
-            [createKey('tdPadding', size)]: tdPadding
-          }
-        } = themeRef.value
-        return {
-          '--n-font-size': fontSize,
-          '--n-th-padding': thPadding,
-          '--n-td-padding': tdPadding,
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-border-radius': borderRadius,
-          '--n-line-height': lineHeight,
-          '--n-border-color': borderColor,
-          '--n-border-color-modal': borderColorModal,
-          '--n-border-color-popover': borderColorPopover,
-          '--n-th-color': thColor,
-          '--n-th-color-hover': thColorHover,
-          '--n-th-color-modal': thColorModal,
-          '--n-th-color-hover-modal': thColorHoverModal,
-          '--n-th-color-popover': thColorPopover,
-          '--n-th-color-hover-popover': thColorHoverPopover,
-          '--n-td-color': tdColor,
-          '--n-td-color-hover': tdColorHover,
-          '--n-td-color-modal': tdColorModal,
-          '--n-td-color-hover-modal': tdColorHoverModal,
-          '--n-n-td-color-popover': tdColorPopover,
-          '--n-td-color-hover-popover': tdColorHoverPopover,
-          '--n-th-text-color': thTextColor,
-          '--n-td-text-color': tdTextColor,
-          '--n-th-font-weight': thFontWeight,
-          '--n-th-button-color-hover': thButtonColorHover,
-          '--n-th-icon-color': thIconColor,
-          '--n-th-icon-color-active': thIconColorActive,
-          '--n-filter-size': filterSize,
-          '--n-pagination-margin': paginationMargin,
-          '--n-empty-padding': emptyPadding,
-          '--n-box-shadow-before': boxShadowBefore,
-          '--n-box-shadow-after': boxShadowAfter,
-          '--n-sorter-size': sorterSize,
-          '--n-loading-size': loadingSize,
-          '--n-loading-color': loadingColor,
-          '--n-opacity-loading': opacityLoading,
-          '--n-td-color-striped': tdColorStriped,
-          '--n-td-color-striped-modal': tdColorStripedModal,
-          '--n-td-color-striped-popover': tdColorStripedPopover
-        }
-      })
+      mergedShowPagination: mergedShowPaginationRef,
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender,
+      ...exposedMethods
     }
   },
   render () {
-    const { mergedClsPrefix } = this
+    const { mergedClsPrefix, themeClass, onRender, $slots, spinProps } = this
+    onRender?.()
     return (
       <div
         class={[
           `${mergedClsPrefix}-data-table`,
+          this.rtlEnabled && `${mergedClsPrefix}-data-table--rtl`,
+          themeClass,
           {
             [`${mergedClsPrefix}-data-table--bordered`]: this.mergedBordered,
             [`${mergedClsPrefix}-data-table--bottom-bordered`]:
@@ -504,7 +450,7 @@ export default defineComponent({
         <div class={`${mergedClsPrefix}-data-table-wrapper`}>
           <MainTable ref="mainTableInstRef" />
         </div>
-        {this.pagination ? (
+        {this.mergedShowPagination ? (
           <div class={`${mergedClsPrefix}-data-table__pagination`}>
             <NPagination
               theme={this.mergedTheme.peers.Pagination}
@@ -518,7 +464,15 @@ export default defineComponent({
           {{
             default: () => {
               return this.loading ? (
-                <NBaseLoading clsPrefix={mergedClsPrefix} strokeWidth={20} />
+                <div class={`${mergedClsPrefix}-data-table-loading-wrapper`}>
+                  {resolveSlot($slots.loading, () => [
+                    <NBaseLoading
+                      clsPrefix={mergedClsPrefix}
+                      strokeWidth={20}
+                      {...spinProps}
+                    />
+                  ])}
+                </div>
               ) : null
             }
           }}

@@ -3,17 +3,18 @@ import {
   inject,
   computed,
   defineComponent,
-  PropType,
+  type PropType,
   provide,
-  ComputedRef,
-  markRaw
+  type ComputedRef,
+  markRaw,
+  type ExtractPropTypes
 } from 'vue'
 import { useMemo } from 'vooks'
 import { merge } from 'lodash-es'
 import { hash } from 'css-render'
-import { ExtractPublicPropTypes, warn } from '../../_utils'
-import { defaultClsPrefix, Hljs } from '../../_mixins'
-import { NDateLocale, NLocale } from '../../locales'
+import { warn } from '../../_utils'
+import { defaultClsPrefix, type Hljs } from '../../_mixins'
+import type { NDateLocale, NLocale } from '../../locales'
 import type {
   GlobalTheme,
   GlobalThemeOverrides,
@@ -26,6 +27,7 @@ import type {
   Breakpoints
 } from './internal-interface'
 import { configProviderInjectionKey } from './context'
+import type { Katex } from './katex'
 
 export const configProviderProps = {
   abstract: Boolean,
@@ -33,7 +35,7 @@ export const configProviderProps = {
     type: Boolean as PropType<boolean | undefined>,
     default: undefined
   },
-  clsPrefix: String,
+  clsPrefix: { type: String, default: defaultClsPrefix },
   locale: Object as PropType<NLocale | null>,
   dateLocale: Object as PropType<NDateLocale | null>,
   namespace: String,
@@ -43,12 +45,14 @@ export const configProviderProps = {
     default: 'div'
   },
   hljs: Object as PropType<Hljs>,
+  katex: Object as PropType<Katex>,
   theme: Object as PropType<GlobalTheme | null>,
   themeOverrides: Object as PropType<GlobalThemeOverrides | null>,
   componentOptions: Object as PropType<GlobalComponentConfig>,
   icons: Object as PropType<GlobalIconConfig>,
   breakpoints: Object as PropType<Breakpoints>,
-  disableInlineTheme: {
+  preflightStyleDisabled: Boolean,
+  inlineThemeDisabled: {
     type: Boolean,
     default: undefined
   },
@@ -63,8 +67,8 @@ export const configProviderProps = {
   }
 } as const
 
-export type ConfigProviderProps = ExtractPublicPropTypes<
-  typeof configProviderProps
+export type ConfigProviderProps = Partial<
+ExtractPropTypes<typeof configProviderProps>
 >
 
 export default defineComponent({
@@ -126,7 +130,8 @@ export default defineComponent({
     const mergedClsPrefixRef = computed(() => {
       const { clsPrefix } = props
       if (clsPrefix !== undefined) return clsPrefix
-      return NConfigProvider?.mergedClsPrefixRef.value
+      if (NConfigProvider) return NConfigProvider.mergedClsPrefixRef.value
+      return defaultClsPrefix
     })
     const mergedRtlRef: ComputedRef<RtlEnabledState | undefined> = computed(
       () => {
@@ -137,6 +142,11 @@ export default defineComponent({
         const rtlEnabledState: RtlEnabledState = {}
         for (const rtlInfo of rtl) {
           rtlEnabledState[rtlInfo.name] = markRaw(rtlInfo)
+          rtlInfo.peers?.forEach((peerRtlInfo) => {
+            if (!(peerRtlInfo.name in rtlEnabledState)) {
+              rtlEnabledState[peerRtlInfo.name] = markRaw(peerRtlInfo)
+            }
+          })
         }
         return rtlEnabledState
       }
@@ -144,9 +154,10 @@ export default defineComponent({
     const mergedBreakpointsRef = computed(() => {
       return props.breakpoints || NConfigProvider?.mergedBreakpointsRef.value
     })
-    const disableInlineTheme =
-      props.disableInlineTheme || NConfigProvider?.disableInlineTheme
-
+    const inlineThemeDisabled =
+      props.inlineThemeDisabled || NConfigProvider?.inlineThemeDisabled
+    const preflightStyleDisabled =
+      props.preflightStyleDisabled || NConfigProvider?.preflightStyleDisabled
     const mergedThemeHashRef = computed(() => {
       const { value: theme } = mergedThemeRef
       const { value: mergedThemeOverrides } = mergedThemeOverridesRef
@@ -194,9 +205,16 @@ export default defineComponent({
         const { hljs } = props
         return hljs === undefined ? NConfigProvider?.mergedHljsRef.value : hljs
       }),
+      mergedKatexRef: computed(() => {
+        const { katex } = props
+        return katex === undefined
+          ? NConfigProvider?.mergedKatexRef.value
+          : katex
+      }),
       mergedThemeRef,
       mergedThemeOverridesRef,
-      disableInlineTheme: disableInlineTheme || false
+      inlineThemeDisabled: inlineThemeDisabled || false,
+      preflightStyleDisabled: preflightStyleDisabled || false
     })
     return {
       mergedClsPrefix: mergedClsPrefixRef,

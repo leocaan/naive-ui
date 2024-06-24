@@ -16,12 +16,18 @@ import { asModal, c, cB, cE, cM, insideModal, insidePopover } from '../../../_ut
 // --n-title-font-weight
 // --n-title-font-size
 // --n-title-text-color
-// --n-close-color
+// --n-close-size
+// --n-close-icon-size
 // --n-close-color-hover
 // --n-close-color-pressed
+// --n-close-icon-color
+// --n-close-icon-color-hover
+// --n-close-icon-color-pressed
 // --n-border-color
-// --n-close-size
 // --n-box-shadow
+// --n-color-embedded
+// --n-color-embedded-modal
+// --n-color-embedded-popover
 export default c([
   cB('card', `
     font-size: var(--n-font-size);
@@ -34,12 +40,16 @@ export default c([
     border-radius: var(--n-border-radius);
     background-color: var(--n-color);
     color: var(--n-text-color);
+    word-break: break-word;
     transition: 
       color .3s var(--n-bezier),
       background-color .3s var(--n-bezier),
       box-shadow .3s var(--n-bezier),
       border-color .3s var(--n-bezier);
   `, [
+    asModal({
+      background: 'var(--n-color-modal)'
+    }),
     cM('hoverable', [
       c('&:hover', 'box-shadow: var(--n-box-shadow);')
     ]),
@@ -89,6 +99,7 @@ export default c([
           font-weight: var(--n-title-font-weight);
           transition: color .3s var(--n-bezier);
           flex: 1;
+          min-width: 0;
           color: var(--n-title-text-color);
         `),
         cE('extra', `
@@ -100,8 +111,10 @@ export default c([
           color: var(--n-text-color);
         `),
         cE('close', `
-          font-size: var(--n-close-size);
-          transition: color .3s var(--n-bezier);
+          margin: 0 0 0 8px;
+          transition:
+            background-color .3s var(--n-bezier),
+            color .3s var(--n-bezier);
         `)
       ]),
       cE('action', `
@@ -112,7 +125,7 @@ export default c([
         background-clip: padding-box;
         background-color: var(--n-action-color);
       `),
-      cE('content', 'flex: 1;'),
+      cE('content', 'flex: 1; min-width: 0;'),
       cE('content, footer', `
         box-sizing: border-box;
         padding: 0 var(--n-padding-left) var(--n-padding-bottom) var(--n-padding-left);
@@ -174,17 +187,23 @@ export default c([
           })
         ])
       ])
-    ])
+    ]),
+    cM('embedded', `
+      background-color: var(--n-color-embedded);
+    `)
   ]),
-  insideModal(cB('card', {
-    background: 'var(--n-color-modal)'
-  })),
-  insidePopover(cB('card', {
-    background: 'var(--n-color-popover)'
-  })),
-  cB('card', [
-    asModal({
-      background: 'var(--n-color-modal)'
-    })
-  ])
+  insideModal(cB('card', `
+    background: var(--n-color-modal);
+  `, [
+    cM('embedded', `
+      background-color: var(--n-color-embedded-modal);
+    `)
+  ])),
+  insidePopover(cB('card', `
+    background: var(--n-color-popover);
+  `, [
+    cM('embedded', `
+      background-color: var(--n-color-embedded-popover);
+    `)
+  ]))
 ])

@@ -1,22 +1,25 @@
-import { h, defineComponent, computed, CSSProperties } from 'vue'
-import { useTheme } from '../../_mixins'
+import { h, defineComponent, computed, type CSSProperties } from 'vue'
+import { useRtl } from '../../_mixins/use-rtl'
+import { useConfig, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import { createKey } from '../../_utils'
+import { createKey, resolveWrappedSlot } from '../../_utils'
 import type { ExtractPublicPropTypes } from '../../_utils'
-import { radioLight, RadioTheme } from '../styles'
-import useRadio from './use-radio'
+import { radioLight, type RadioTheme } from '../styles'
+import { setup, radioBaseProps } from './use-radio'
 import style from './styles/radio.cssr'
 
-export type RadioProps = ExtractPublicPropTypes<typeof useRadio.props>
+export const radioProps = {
+  ...(useTheme.props as ThemeProps<RadioTheme>),
+  ...radioBaseProps
+} as const
+
+export type RadioProps = ExtractPublicPropTypes<typeof radioProps>
 
 export default defineComponent({
   name: 'Radio',
-  props: {
-    ...(useTheme.props as ThemeProps<RadioTheme>),
-    ...useRadio.props
-  },
+  props: radioProps,
   setup (props) {
-    const radio = useRadio(props)
+    const radio = setup(props)
     const themeRef = useTheme(
       'Radio',
       '-radio',
@@ -25,61 +28,83 @@ export default defineComponent({
       props,
       radio.mergedClsPrefix
     )
-    return Object.assign(radio, {
-      cssVars: computed(() => {
-        const {
-          mergedSize: { value: size }
-        } = radio
-        const {
-          common: { cubicBezierEaseInOut },
-          self: {
-            boxShadow,
-            boxShadowActive,
-            boxShadowDisabled,
-            boxShadowFocus,
-            boxShadowHover,
-            color,
-            colorDisabled,
-            textColor,
-            textColorDisabled,
-            dotColorActive,
-            dotColorDisabled,
-            labelPadding,
-            [createKey('fontSize', size)]: fontSize,
-            [createKey('radioSize', size)]: radioSize
-          }
-        } = themeRef.value
-        return {
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-box-shadow': boxShadow,
-          '--n-box-shadow-active': boxShadowActive,
-          '--n-box-shadow-disabled': boxShadowDisabled,
-          '--n-box-shadow-focus': boxShadowFocus,
-          '--n-box-shadow-hover': boxShadowHover,
-          '--n-color': color,
-          '--n-color-disabled': colorDisabled,
-          '--n-dot-color-active': dotColorActive,
-          '--n-dot-color-disabled': dotColorDisabled,
-          '--n-font-size': fontSize,
-          '--n-radio-size': radioSize,
-          '--n-text-color': textColor,
-          '--n-text-color-disabled': textColorDisabled,
-          '--n-label-padding': labelPadding
+    const cssVarsRef = computed(() => {
+      const {
+        mergedSize: { value: size }
+      } = radio
+      const {
+        common: { cubicBezierEaseInOut },
+        self: {
+          boxShadow,
+          boxShadowActive,
+          boxShadowDisabled,
+          boxShadowFocus,
+          boxShadowHover,
+          color,
+          colorDisabled,
+          colorActive,
+          textColor,
+          textColorDisabled,
+          dotColorActive,
+          dotColorDisabled,
+          labelPadding,
+          labelLineHeight,
+          labelFontWeight,
+          [createKey('fontSize', size)]: fontSize,
+          [createKey('radioSize', size)]: radioSize
         }
-      })
+      } = themeRef.value
+      return {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-label-line-height': labelLineHeight,
+        '--n-label-font-weight': labelFontWeight,
+        '--n-box-shadow': boxShadow,
+        '--n-box-shadow-active': boxShadowActive,
+        '--n-box-shadow-disabled': boxShadowDisabled,
+        '--n-box-shadow-focus': boxShadowFocus,
+        '--n-box-shadow-hover': boxShadowHover,
+        '--n-color': color,
+        '--n-color-active': colorActive,
+        '--n-color-disabled': colorDisabled,
+        '--n-dot-color-active': dotColorActive,
+        '--n-dot-color-disabled': dotColorDisabled,
+        '--n-font-size': fontSize,
+        '--n-radio-size': radioSize,
+        '--n-text-color': textColor,
+        '--n-text-color-disabled': textColorDisabled,
+        '--n-label-padding': labelPadding
+      }
+    })
+    const { inlineThemeDisabled, mergedClsPrefixRef, mergedRtlRef } =
+      useConfig(props)
+    const rtlEnabledRef = useRtl('Radio', mergedRtlRef, mergedClsPrefixRef)
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'radio',
+        computed(() => radio.mergedSize.value[0]),
+        cssVarsRef,
+        props
+      )
+      : undefined
+    return Object.assign(radio, {
+      rtlEnabled: rtlEnabledRef,
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     })
   },
   render () {
-    const { $slots, mergedClsPrefix } = this
+    const { $slots, mergedClsPrefix, onRender, label } = this
+    onRender?.()
     return (
       <label
         class={[
           `${mergedClsPrefix}-radio`,
-          {
-            [`${mergedClsPrefix}-radio--disabled`]: this.mergedDisabled,
-            [`${mergedClsPrefix}-radio--checked`]: this.renderSafeChecked,
-            [`${mergedClsPrefix}-radio--focus`]: this.focus
-          }
+          this.themeClass,
+          this.rtlEnabled && `${mergedClsPrefix}-radio--rtl`,
+          this.mergedDisabled && `${mergedClsPrefix}-radio--disabled`,
+          this.renderSafeChecked && `${mergedClsPrefix}-radio--checked`,
+          this.focus && `${mergedClsPrefix}-radio--focus`
         ]}
         style={this.cssVars as CSSProperties}
       >
@@ -95,17 +120,23 @@ export default defineComponent({
           onFocus={this.handleRadioInputFocus}
           onBlur={this.handleRadioInputBlur}
         />
-        <div
-          class={[
-            `${mergedClsPrefix}-radio__dot`,
-            this.renderSafeChecked && `${mergedClsPrefix}-radio__dot--checked`
-          ]}
-        />
-        {$slots.default ? (
-          <div ref="labelRef" class={`${mergedClsPrefix}-radio__label`}>
-            {$slots.default()}
-          </div>
-        ) : null}
+        <div class={`${mergedClsPrefix}-radio__dot-wrapper`}>
+          &nbsp;
+          <div
+            class={[
+              `${mergedClsPrefix}-radio__dot`,
+              this.renderSafeChecked && `${mergedClsPrefix}-radio__dot--checked`
+            ]}
+          />
+        </div>
+        {resolveWrappedSlot($slots.default, (children) => {
+          if (!children && !label) return null
+          return (
+            <div ref="labelRef" class={`${mergedClsPrefix}-radio__label`}>
+              {children || label}
+            </div>
+          )
+        })}
       </label>
     )
   }

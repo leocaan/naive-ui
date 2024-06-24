@@ -3,15 +3,15 @@ import {
   defineComponent,
   ref,
   computed,
-  PropType,
+  type PropType,
   toRef,
   watchEffect,
-  VNode,
+  type VNode,
   withDirectives,
   Transition,
-  CSSProperties,
+  type CSSProperties,
   provide,
-  Ref,
+  type Ref,
   watch,
   nextTick
 } from 'vue'
@@ -28,26 +28,28 @@ import {
   toRgbaString,
   toHsvaString,
   toHslaString,
-  HSVA,
-  RGBA,
-  HSLA,
+  type HSVA,
+  type RGBA,
+  type HSLA,
   toHexaString,
   toHsvString,
   toRgbString,
   toHexString,
-  toHslString
+  toHslString,
+  getPreciseEventTarget
 } from 'seemly'
 import { useIsMounted, useMergedState } from 'vooks'
-import { VBinder, VFollower, VTarget, FollowerPlacement } from 'vueuc'
+import { VBinder, VFollower, VTarget, type FollowerPlacement } from 'vueuc'
 import { clickoutside } from 'vdirs'
 import { colorPickerLight } from '../styles'
 import type { ColorPickerTheme } from '../styles'
 import {
-  ThemeProps,
+  type ThemeProps,
   useFormItem,
   useConfig,
   useTheme,
-  useLocale
+  useLocale,
+  useThemeClass
 } from '../../_mixins'
 import { call, createKey, useAdjustedTo } from '../../_utils'
 import type { ExtractPublicPropTypes, MaybeArray } from '../../_utils'
@@ -59,23 +61,25 @@ import ColorInput from './ColorInput'
 import ColorPickerTrigger from './ColorPickerTrigger'
 import { deriveDefaultValue, getModeFromValue } from './utils'
 import type { ColorPickerMode, ActionType } from './utils'
-import { OnUpdateValue, OnUpdateValueImpl, RenderLabel } from './interface'
+import type {
+  OnConfirmImpl,
+  OnUpdateValue,
+  OnUpdateValueImpl,
+  RenderLabel
+} from './interface'
 import ColorPickerSwatches from './ColorPickerSwatches'
 import ColorPreview from './ColorPreview'
 import { colorPickerInjectionKey } from './context'
 import style from './styles/index.cssr'
 
-export const colorPickerPanelProps = {
+export const colorPickerProps = {
   ...(useTheme.props as ThemeProps<ColorPickerTheme>),
-  value: String,
+  value: String as PropType<string | null>,
   show: {
     type: Boolean as PropType<boolean | undefined>,
     default: undefined
   },
-  defaultShow: {
-    type: Boolean,
-    default: false
-  },
+  defaultShow: Boolean,
   defaultValue: String as PropType<string | null>,
   modes: {
     type: Array as PropType<ColorPickerMode[]>,
@@ -105,6 +109,7 @@ export const colorPickerPanelProps = {
   size: String as PropType<'small' | 'medium' | 'large'>,
   renderLabel: Function as PropType<RenderLabel>,
   onComplete: Function as PropType<OnUpdateValue>,
+  onConfirm: Function as PropType<OnUpdateValue>,
   'onUpdate:show': [Function, Array] as PropType<
   MaybeArray<(value: boolean) => void>
   >,
@@ -115,13 +120,11 @@ export const colorPickerPanelProps = {
   onUpdateValue: [Function, Array] as PropType<MaybeArray<OnUpdateValue>>
 } as const
 
-export type ColorPickerProps = ExtractPublicPropTypes<
-  typeof colorPickerPanelProps
->
+export type ColorPickerProps = ExtractPublicPropTypes<typeof colorPickerProps>
 
 export default defineComponent({
   name: 'ColorPicker',
-  props: colorPickerPanelProps,
+  props: colorPickerProps,
   setup (props, { slots }) {
     const selfRef = ref<HTMLElement | null>(null)
     let upcomingValue: string | null = null
@@ -129,7 +132,8 @@ export default defineComponent({
     const formItem = useFormItem(props)
     const { mergedSizeRef, mergedDisabledRef } = formItem
     const { localeRef } = useLocale('global')
-    const { mergedClsPrefixRef, namespaceRef } = useConfig(props)
+    const { mergedClsPrefixRef, namespaceRef, inlineThemeDisabled } =
+      useConfig(props)
 
     const themeRef = useTheme(
       'ColorPicker',
@@ -439,7 +443,17 @@ export default defineComponent({
       valueIndexRef.value = valueIndex + 1
     }
 
+    function handleClear (): void {
+      doUpdateValue(null, 'input')
+      doUpdateShow(false)
+    }
+
     function handleConfirm (): void {
+      const { value } = mergedValueRef
+      const { onConfirm } = props
+      if (onConfirm) {
+        ;(onConfirm as OnConfirmImpl)(value)
+      }
       doUpdateShow(false)
     }
 
@@ -499,6 +513,16 @@ export default defineComponent({
         '--n-divider-color': dividerColor
       }
     })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass(
+        'color-picker',
+        computed(() => {
+          return mergedSizeRef.value[0]
+        }),
+        cssVarsRef,
+        props
+      )
+      : undefined
 
     function renderPanel (): VNode {
       const { value: rgba } = rgbaRef
@@ -508,11 +532,18 @@ export default defineComponent({
       const { value: mergedClsPrefix } = mergedClsPrefixRef
       return (
         <div
-          class={`${mergedClsPrefix}-color-picker-panel`}
+          class={[
+            `${mergedClsPrefix}-color-picker-panel`,
+            themeClassHandle?.themeClass.value
+          ]}
           onDragstart={(e) => {
             e.preventDefault()
           }}
-          style={cssVarsRef.value as CSSProperties}
+          style={
+            inlineThemeDisabled
+              ? undefined
+              : (cssVarsRef.value as CSSProperties)
+          }
         >
           <div class={`${mergedClsPrefix}-color-picker-control`}>
             <Pallete
@@ -546,7 +577,9 @@ export default defineComponent({
                   clsPrefix={mergedClsPrefix}
                   mode={displayedModeRef.value}
                   color={rgbaRef.value && toHexString(rgbaRef.value)}
-                  onUpdateColor={(color) => doUpdateValue(color, 'input')}
+                  onUpdateColor={(color) => {
+                    doUpdateValue(color, 'input')
+                  }}
                 />
               ) : null}
             </div>
@@ -565,7 +598,9 @@ export default defineComponent({
                 clsPrefix={mergedClsPrefix}
                 mode={displayedModeRef.value}
                 swatches={props.swatches}
-                onUpdateColor={(color) => doUpdateValue(color, 'input')}
+                onUpdateColor={(color) => {
+                  doUpdateValue(color, 'input')
+                }}
               />
             )}
           </div>
@@ -579,6 +614,17 @@ export default defineComponent({
                   themeOverrides={mergedTheme.peerOverrides.Button}
                 >
                   {{ default: () => localeRef.value.confirm }}
+                </NButton>
+              )}
+              {actions.includes('clear') && (
+                <NButton
+                  size="small"
+                  onClick={handleClear}
+                  disabled={!mergedValueRef.value}
+                  theme={mergedTheme.peers.Button}
+                  themeOverrides={mergedTheme.peerOverrides.Button}
+                >
+                  {{ default: () => localeRef.value.clear }}
                 </NButton>
               )}
             </div>
@@ -632,18 +678,23 @@ export default defineComponent({
         doUpdateShow(true)
       },
       handleClickOutside (e: MouseEvent) {
-        if (selfRef.value?.contains(e.target as Node)) return
+        if (selfRef.value?.contains(getPreciseEventTarget(e) as Node | null)) {
+          return
+        }
         doUpdateShow(false)
       },
       renderPanel,
-      cssVars: cssVarsRef
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
-    const { $slots, mergedClsPrefix } = this
+    const { $slots, mergedClsPrefix, onRender } = this
+    onRender?.()
     return (
       <div
-        class={`${mergedClsPrefix}-color-picker`}
+        class={[this.themeClass, `${mergedClsPrefix}-color-picker`]}
         ref="selfRef"
         style={this.cssVars as CSSProperties}
       >
@@ -684,7 +735,12 @@ export default defineComponent({
                         default: () =>
                           this.mergedShow
                             ? withDirectives(this.renderPanel(), [
-                              [clickoutside, this.handleClickOutside]
+                              [
+                                clickoutside,
+                                this.handleClickOutside,
+                                undefined as any as string,
+                                { capture: true }
+                              ]
                             ])
                             : null
                       }}

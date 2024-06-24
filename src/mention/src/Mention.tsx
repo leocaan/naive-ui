@@ -2,24 +2,25 @@
 import {
   defineComponent,
   h,
-  PropType,
+  type PropType,
   ref,
   toRef,
   nextTick,
   computed,
   Transition,
-  CSSProperties
+  type CSSProperties
 } from 'vue'
-import { createTreeMate, TreeNode } from 'treemate'
+import { createTreeMate, type TreeNode } from 'treemate'
 import {
   VBinder,
   VFollower,
   VTarget,
-  FollowerInst,
-  FollowerPlacement
+  type FollowerInst,
+  type FollowerPlacement
 } from 'vueuc'
 import { useIsMounted, useMergedState } from 'vooks'
-import { RenderLabel } from '../../_internal/select-menu/src/interface'
+import type { FormValidationStatus } from '../../form/src/interface'
+import type { RenderLabel } from '../../_internal/select-menu/src/interface'
 import type { Size as InputSize } from '../../input/src/interface'
 import { NInput } from '../../input'
 import type { InputInst } from '../../input'
@@ -32,7 +33,7 @@ import { NInternalSelectMenu } from '../../_internal'
 import type { InternalSelectMenuRef } from '../../_internal'
 import { call, useAdjustedTo, warn } from '../../_utils'
 import type { ExtractPublicPropTypes, MaybeArray } from '../../_utils'
-import { useConfig, useFormItem, useTheme } from '../../_mixins'
+import { useConfig, useFormItem, useTheme, useThemeClass } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
 import { mentionLight } from '../styles'
 import type { MentionTheme } from '../styles'
@@ -40,7 +41,7 @@ import { getRelativePosition } from './utils'
 import type { MentionOption } from './interface'
 import style from './styles/index.cssr'
 
-const mentionProps = {
+export const mentionProps = {
   ...(useTheme.props as ThemeProps<MentionTheme>),
   to: useAdjustedTo.propTo,
   autosize: [Boolean, Object] as PropType<
@@ -49,6 +50,21 @@ const mentionProps = {
   options: {
     type: Array as PropType<MentionOption[]>,
     default: []
+  },
+  filter: {
+    type: Function as PropType<
+    (pattern: string, option: MentionOption) => boolean
+    >,
+    default: (pattern: string, option: MentionOption) => {
+      if (!pattern) return true
+      if (typeof option.label === 'string') {
+        return option.label.startsWith(pattern)
+      }
+      if (typeof option.value === 'string') {
+        return option.value.startsWith(pattern)
+      }
+      return false
+    }
   },
   type: {
     type: String as PropType<'text' | 'textarea'>,
@@ -89,10 +105,17 @@ const mentionProps = {
     default: 'bottom-start'
   },
   size: String as PropType<InputSize>,
+  renderLabel: Function as PropType<RenderLabel>,
+  status: String as PropType<FormValidationStatus>,
+  'onUpdate:show': [Array, Function] as PropType<
+  MaybeArray<(show: boolean) => void>
+  >,
+  onUpdateShow: [Array, Function] as PropType<
+  MaybeArray<(show: boolean) => void>
+  >,
   'onUpdate:value': [Array, Function] as PropType<
   MaybeArray<(value: string) => void>
   >,
-  renderLabel: Function as PropType<RenderLabel>,
   onUpdateValue: [Array, Function] as PropType<
   MaybeArray<(value: string) => void>
   >,
@@ -112,8 +135,12 @@ export default defineComponent({
   name: 'Mention',
   props: mentionProps,
   setup (props) {
-    const { namespaceRef, mergedClsPrefixRef, mergedBorderedRef } =
-      useConfig(props)
+    const {
+      namespaceRef,
+      mergedClsPrefixRef,
+      mergedBorderedRef,
+      inlineThemeDisabled
+    } = useConfig(props)
     const themeRef = useTheme(
       'Mention',
       '-mention',
@@ -135,13 +162,7 @@ export default defineComponent({
     let cachedPartialPatternEnd: number | null = null
     const filteredOptionsRef = computed(() => {
       const { value: pattern } = partialPatternRef
-      return props.options.filter((option) => {
-        if (!pattern) return true
-        if (typeof option.label === 'string') {
-          return option.label.startsWith(pattern)
-        }
-        return option.value.startsWith(pattern)
-      })
+      return props.options.filter((option) => props.filter(pattern, option))
     })
     const treeMateRef = computed(() => {
       return createTreeMate<
@@ -149,11 +170,12 @@ export default defineComponent({
       SelectGroupOption,
       SelectIgnoredOption
       // We need to cast filteredOptionsRef's type since the render function
-      // is not compitable
+      // is not compatible
       // MentionOption { value: string, render?: (value: string) => VNodeChild }
       // SelectOption { value: string | number, render?: (value: string | number) => VNodeChild }
       // The 2 types are not compatible since `render`s are not compatible
       // However we know it works...
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       >(filteredOptionsRef.value as any, {
         getKey: (v) => {
           return (v as any).value
@@ -168,8 +190,22 @@ export default defineComponent({
       controlledValueRef,
       uncontrolledValueRef
     )
+    const cssVarsRef = computed(() => {
+      const {
+        self: { menuBoxShadow }
+      } = themeRef.value
+      return {
+        '--n-menu-box-shadow': menuBoxShadow
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('mention', undefined, cssVarsRef, props)
+      : undefined
     function doUpdateShowMenu (show: boolean): void {
       if (props.disabled) return
+      const { onUpdateShow, 'onUpdate:show': _onUpdateShow } = props
+      if (onUpdateShow) call(onUpdateShow, show)
+      if (_onUpdateShow) call(_onUpdateShow, show)
       if (!show) {
         cachedPrefix = null
         cachedPartialPatternStart = null
@@ -263,23 +299,22 @@ export default defineComponent({
       }, 0)
     }
     function handleInputKeyDown (e: KeyboardEvent): void {
-      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (inputInstRef.value?.isCompositing) return
         syncAfterCursorMove()
       } else if (
-        e.code === 'ArrowUp' ||
-        e.code === 'ArrowDown' ||
-        e.code === 'Enter' ||
-        e.code === 'NumpadEnter'
+        e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' ||
+        e.key === 'Enter'
       ) {
         if (inputInstRef.value?.isCompositing) return
         const { value: selectMenuInst } = selectMenuInstRef
         if (showMenuRef.value) {
           if (selectMenuInst) {
             e.preventDefault()
-            if (e.code === 'ArrowUp') {
+            if (e.key === 'ArrowUp') {
               selectMenuInst.prev()
-            } else if (e.code === 'ArrowDown') {
+            } else if (e.key === 'ArrowDown') {
               selectMenuInst.next()
             } else {
               // Enter
@@ -331,7 +366,7 @@ export default defineComponent({
         return
       }
       const {
-        rawNode: { value }
+        rawNode: { value = '' }
       } = tmNode
       const inputEl = getInputEl()
       const inputValue = inputEl.value
@@ -385,14 +420,9 @@ export default defineComponent({
       handleInputMouseDown,
       focus,
       blur,
-      cssVars: computed(() => {
-        const {
-          self: { menuBoxShadow }
-        } = themeRef.value
-        return {
-          '--n-menu-box-shadow': menuBoxShadow
-        }
-      })
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
@@ -433,7 +463,7 @@ export default defineComponent({
                       style.height = '1px'
                       style.background = 'red'
                     }
-                    return <div style={style} ref="cursorRef"></div>
+                    return <div style={style} ref="cursorRef" />
                   }
                 }}
               </VTarget>,
@@ -453,7 +483,8 @@ export default defineComponent({
                     >
                       {{
                         default: () => {
-                          const { mergedTheme } = this
+                          const { mergedTheme, onRender } = this
+                          onRender?.()
                           return this.showMenu ? (
                             <NInternalSelectMenu
                               clsPrefix={mergedClsPrefix}
@@ -463,11 +494,14 @@ export default defineComponent({
                               }
                               autoPending
                               ref="selectMenuInstRef"
-                              class={`${mergedClsPrefix}-mention-menu`}
+                              class={[
+                                `${mergedClsPrefix}-mention-menu`,
+                                this.themeClass
+                              ]}
                               loading={this.loading}
                               treeMate={this.treeMate}
                               virtualScroll={false}
-                              style={this.cssVars as CSSProperties}
+                              style={this.cssVars as any}
                               onToggle={this.handleSelect}
                               renderLabel={this.renderLabel}
                             >

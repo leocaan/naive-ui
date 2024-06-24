@@ -1,5 +1,5 @@
-import { TreeMate } from 'treemate'
-import { CSSProperties, VNodeChild, VNode } from 'vue'
+import { type TreeMate } from 'treemate'
+import { type CSSProperties, type VNodeChild, type VNode } from 'vue'
 
 export type SelectMixedOption =
   | SelectBaseOption
@@ -10,8 +10,8 @@ export interface SelectBaseOption<
   V = string | number,
   L = string | ((option: SelectBaseOption<V>, selected: boolean) => VNodeChild)
 > {
-  value: V
-  label: L
+  value?: V
+  label?: L
   class?: string
   style?: string | CSSProperties
   disabled?: boolean
@@ -24,9 +24,9 @@ export interface SelectBaseOption<
 }
 
 export interface SelectGroupOptionBase {
-  label: string | ((option: SelectGroupOption) => VNodeChild)
+  label?: string | ((option: SelectGroupOption) => VNodeChild)
   type: 'group'
-  children: SelectBaseOption[]
+  children?: SelectBaseOption[]
   render?: (info: { node: VNode, option: SelectGroupOption }) => VNodeChild
   [k: string]: unknown
 }
@@ -46,10 +46,10 @@ export type OnUpdateValue = (
   string[] &
   number[] &
   ValueAtom[] &
-    (ValueAtom | null) &
-    (string[] | null) &
-    (number[] | null) &
-    (ValueAtom[] | null),
+  (ValueAtom | null) &
+  (string[] | null) &
+  (number[] | null) &
+  (ValueAtom[] | null),
   option: SelectBaseOption & null & SelectBaseOption[]
 ) => void
 export type OnUpdateValueImpl = (
@@ -70,7 +70,7 @@ SelectGroupOption,
 SelectIgnoredOption
 >
 
-export type Size = 'small' | 'medium' | 'large'
+export type Size = 'tiny' | 'small' | 'medium' | 'large'
 
 // Public interfaces
 export type SelectOption = SelectBaseOption<string | number>
@@ -86,7 +86,10 @@ export type SelectGroupOption =
 export interface SelectInst {
   focus: () => void
   blur: () => void
+  focusInput: () => void
+  blurInput: () => void
 }
 
 export type SelectFallbackOption = (value: string & number) => SelectOption
 export type SelectFallbackOptionImpl = (value: string | number) => SelectOption
+export type SelectFilter = (pattern: string, option: SelectOption) => boolean

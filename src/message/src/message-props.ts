@@ -1,6 +1,6 @@
-import { ExtractPropTypes, PropType, VNodeChild } from 'vue'
-import { ExtractPublicPropTypes } from '../../_utils'
-import { MessageType } from './types'
+import type { ExtractPropTypes, PropType, VNodeChild } from 'vue'
+import type { ExtractPublicPropTypes } from '../../_utils'
+import type { MessageType } from './types'
 
 export const messageProps = {
   icon: Function as PropType<() => VNodeChild>,
@@ -11,6 +11,10 @@ export const messageProps = {
   content: [String, Number, Function] as PropType<
   string | number | (() => VNodeChild)
   >,
+  showIcon: {
+    type: Boolean,
+    default: true
+  },
   closable: Boolean,
   keepAliveOnHover: Boolean,
   onClose: Function as PropType<() => void>,

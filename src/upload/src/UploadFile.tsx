@@ -1,13 +1,15 @@
 import {
   h,
   defineComponent,
-  PropType,
+  type PropType,
   computed,
   inject,
   ref,
   watchEffect,
-  VNode
+  type VNode
 } from 'vue'
+import { useMemo } from 'vooks'
+import { type ImageInst } from '../../image/src/Image'
 import {
   CancelIcon,
   TrashIcon,
@@ -16,16 +18,24 @@ import {
   DownloadIcon,
   EyeIcon
 } from '../../_internal/icons'
+import type { ExtractThemeOverrides } from '../../_mixins/use-theme'
+import { type ButtonTheme } from '../../button/styles'
+import { NImage } from '../../image'
 import { NButton } from '../../button'
 import { NIconSwitchTransition, NBaseIcon } from '../../_internal'
-import { warn } from '../../_utils'
+import { warn, download } from '../../_utils'
 import NUploadProgress from './UploadProgress'
 import { uploadInjectionKey } from './interface'
-import type { FileInfo, ListType } from './interface'
+import type { ListType } from './interface'
+import type { UploadSettledFileInfo } from './public-types'
 import { imageIcon, documentIcon } from './icons'
-import { environmentSupportFile, isImageFile } from './utils'
-import { NImage } from '../../image'
-import { ImageInst } from '../../image/src/Image'
+import { isImageFile } from './utils'
+
+const buttonThemeOverrides: ExtractThemeOverrides<ButtonTheme> = {
+  paddingMedium: '0 3px',
+  heightMedium: '24px',
+  iconSizeMedium: '18px'
+}
 
 export default defineComponent({
   name: 'UploadFile',
@@ -35,11 +45,15 @@ export default defineComponent({
       required: true
     },
     file: {
-      type: Object as PropType<FileInfo>,
+      type: Object as PropType<UploadSettledFileInfo>,
       required: true
     },
     listType: {
       type: String as PropType<ListType>,
+      required: true
+    },
+    index: {
+      type: Number,
       required: true
     }
   },
@@ -85,15 +99,18 @@ export default defineComponent({
       const { file } = props
       return ['error'].includes(file.status)
     })
+    const mergedThumbnailUrlRef = useMemo(() => {
+      return thumbnailUrlRef.value || props.file.thumbnailUrl || props.file.url
+    })
     const showPreviewButtonRef = computed(() => {
       if (!NUpload.showPreviewButtonRef.value) return false
       const {
-        file: { status, url },
+        file: { status },
         listType
       } = props
       return (
         ['finished'].includes(status) &&
-        (url || thumbnailUrlRef.value) &&
+        mergedThumbnailUrlRef.value &&
         listType === 'image-card'
       )
     })
@@ -115,9 +132,9 @@ export default defineComponent({
       e.preventDefault()
       handleDownload(props.file)
     }
-    function handleRemove (file: FileInfo): void {
+    function handleRemove (file: UploadSettledFileInfo): void {
       const {
-        XhrMap,
+        xhrMap,
         doChange,
         onRemoveRef: { value: onRemove },
         mergedFileListRef: { value: mergedFileList }
@@ -126,7 +143,8 @@ export default defineComponent({
         onRemove
           ? onRemove({
             file: Object.assign({}, file),
-            fileList: mergedFileList
+            fileList: mergedFileList,
+            index: props.index
           })
           : true
       ).then((result) => {
@@ -134,26 +152,28 @@ export default defineComponent({
         const fileAfterChange = Object.assign({}, file, {
           status: 'removed'
         })
-        XhrMap.delete(file.id)
+        xhrMap.delete(file.id)
         doChange(fileAfterChange, undefined, {
           remove: true
         })
       })
     }
-    function handleDownload (file: FileInfo): void {
+    function handleDownload (file: UploadSettledFileInfo): void {
       const {
         onDownloadRef: { value: onDownload }
       } = NUpload
       void Promise.resolve(
         onDownload ? onDownload(Object.assign({}, file)) : true
       ).then((res) => {
-        /** I haven't figure out its usage, so just leave it here */
+        if (res !== false) {
+          download(file.url, file.name)
+        }
       })
     }
-    function handleAbort (file: FileInfo): void {
-      const { XhrMap } = NUpload
-      const XHR = XhrMap.get(file.id)
-      XHR?.abort()
+    function handleAbort (file: UploadSettledFileInfo): void {
+      const { xhrMap } = NUpload
+      const xhr = xhrMap.get(file.id)
+      xhr?.abort()
       handleRemove(Object.assign({}, file))
     }
     function handlePreviewClick (): void {
@@ -175,10 +195,11 @@ export default defineComponent({
       if (listType !== 'image' && listType !== 'image-card') {
         return
       }
-      if (!environmentSupportFile || !(props.file.file instanceof File)) {
-        return
+      if (NUpload.shouldUseThumbnailUrlRef.value(props.file)) {
+        thumbnailUrlRef.value = await NUpload.getFileThumbnailUrlResolver(
+          props.file
+        )
       }
-      thumbnailUrlRef.value = await NUpload.getFileThumbnailUrl(props.file)
     }
 
     watchEffect(() => {
@@ -196,7 +217,9 @@ export default defineComponent({
       showDownloadButton: showDownloadButtonRef,
       showRetryButton: showRetryButtonRef,
       showPreviewButton: showPreviewButtonRef,
-      thumbnailUrl: thumbnailUrlRef,
+      mergedThumbnailUrl: mergedThumbnailUrlRef,
+      shouldUseThumbnailUrl: NUpload.shouldUseThumbnailUrlRef,
+      renderIcon: NUpload.renderIconRef,
       imageRef,
       handleRemoveOrCancelClick,
       handleDownloadClick,
@@ -205,7 +228,7 @@ export default defineComponent({
     }
   },
   render () {
-    const { clsPrefix, mergedTheme, listType, file } = this
+    const { clsPrefix, mergedTheme, listType, file, renderIcon } = this
 
     // if there is text list type, show file icon
     let icon: VNode
@@ -214,51 +237,51 @@ export default defineComponent({
     const isImageCardType = listType === 'image-card'
 
     if (isImageType || isImageCardType) {
-      icon = !isImageFile(file) ? (
-        <span class={`${clsPrefix}-upload-file-info__thumbnail`}>
-          <NBaseIcon clsPrefix={clsPrefix}>
-            {{ default: () => documentIcon }}
-          </NBaseIcon>
-        </span>
-      ) : (file.url || this.thumbnailUrl) && file.status !== 'error' ? (
-        <a
-          rel="noopener noreferer"
-          target="_blank"
-          href={file.url || undefined}
-          class={`${clsPrefix}-upload-file-info__thumbnail`}
-          onClick={this.handlePreviewClick}
-        >
-          {listType === 'image-card' ? (
-            <NImage
-              src={
-                this.thumbnailUrl || file.thumbnailUrl || file.url || undefined
-              }
-              previewSrc={file.url || undefined}
-              alt={file.name}
-              ref="imageRef"
-            />
-          ) : (
-            <img
-              src={
-                this.thumbnailUrl || file.thumbnailUrl || file.url || undefined
-              }
-              alt={file.name}
-            />
-          )}
-        </a>
-      ) : (
-        <span class={`${clsPrefix}-upload-file-info__thumbnail`}>
-          <NBaseIcon clsPrefix={clsPrefix}>
-            {{ default: () => imageIcon }}
-          </NBaseIcon>
-        </span>
-      )
+      icon =
+        !this.shouldUseThumbnailUrl(file) || !this.mergedThumbnailUrl ? (
+          <span class={`${clsPrefix}-upload-file-info__thumbnail`}>
+            {renderIcon ? (
+              renderIcon(file)
+            ) : isImageFile(file) ? (
+              <NBaseIcon clsPrefix={clsPrefix}>
+                {{ default: () => imageIcon }}
+              </NBaseIcon>
+            ) : (
+              <NBaseIcon clsPrefix={clsPrefix}>
+                {{ default: () => documentIcon }}
+              </NBaseIcon>
+            )}
+          </span>
+        ) : (
+          <a
+            rel="noopener noreferer"
+            target="_blank"
+            href={file.url || undefined}
+            class={`${clsPrefix}-upload-file-info__thumbnail`}
+            onClick={this.handlePreviewClick}
+          >
+            {listType === 'image-card' ? (
+              <NImage
+                src={this.mergedThumbnailUrl || undefined}
+                previewSrc={file.url || undefined}
+                alt={file.name}
+                ref="imageRef"
+              />
+            ) : (
+              <img src={this.mergedThumbnailUrl || undefined} alt={file.name} />
+            )}
+          </a>
+        )
     } else {
       icon = (
         <span class={`${clsPrefix}-upload-file-info__thumbnail`}>
-          <NBaseIcon clsPrefix={clsPrefix}>
-            {{ default: () => <AttachIcon /> }}
-          </NBaseIcon>
+          {renderIcon ? (
+            renderIcon(file)
+          ) : (
+            <NBaseIcon clsPrefix={clsPrefix}>
+              {{ default: () => <AttachIcon /> }}
+            </NBaseIcon>
+          )}
         </span>
       )
     }
@@ -312,11 +335,12 @@ export default defineComponent({
             {this.showPreviewButton ? (
               <NButton
                 key="preview"
-                text
+                quaternary
                 type={this.buttonType}
                 onClick={this.handlePreviewClick}
                 theme={mergedTheme.peers.Button}
                 themeOverrides={mergedTheme.peerOverrides.Button}
+                builtinThemeOverrides={buttonThemeOverrides}
               >
                 {{
                   icon: () => (
@@ -333,7 +357,8 @@ export default defineComponent({
                   key="cancelOrTrash"
                   theme={mergedTheme.peers.Button}
                   themeOverrides={mergedTheme.peerOverrides.Button}
-                  text
+                  quaternary
+                  builtinThemeOverrides={buttonThemeOverrides}
                   type={this.buttonType}
                   onClick={this.handleRemoveOrCancelClick}
                 >
@@ -360,11 +385,12 @@ export default defineComponent({
             {this.showRetryButton && !this.disabled && (
               <NButton
                 key="retry"
-                text
+                quaternary
                 type={this.buttonType}
                 onClick={this.handleRetryClick}
                 theme={mergedTheme.peers.Button}
                 themeOverrides={mergedTheme.peerOverrides.Button}
+                builtinThemeOverrides={buttonThemeOverrides}
               >
                 {{
                   icon: () => (
@@ -378,11 +404,12 @@ export default defineComponent({
             {this.showDownloadButton ? (
               <NButton
                 key="download"
-                text
+                quaternary
                 type={this.buttonType}
                 onClick={this.handleDownloadClick}
                 theme={mergedTheme.peers.Button}
                 themeOverrides={mergedTheme.peerOverrides.Button}
+                builtinThemeOverrides={buttonThemeOverrides}
               >
                 {{
                   icon: () => (

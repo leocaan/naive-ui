@@ -11,6 +11,7 @@ import {
 import { NBaseFocusDetector } from '../../../_internal'
 import { useCalendar, useCalendarProps } from './use-calendar'
 import PanelHeader from './panelHeader'
+import { resolveSlot } from '../../../_utils'
 
 /**
  * DateTime Panel
@@ -25,12 +26,25 @@ export default defineComponent({
     return useCalendar(props, 'datetime')
   },
   render () {
-    const { mergedClsPrefix, mergedTheme, shortcuts } = this
+    const {
+      mergedClsPrefix,
+      mergedTheme,
+      shortcuts,
+      timePickerProps,
+      onRender,
+      $slots
+    } = this
+    onRender?.()
     return (
       <div
         ref="selfRef"
         tabindex={0}
-        class={`${mergedClsPrefix}-date-panel ${mergedClsPrefix}-date-panel--datetime`}
+        class={[
+          `${mergedClsPrefix}-date-panel`,
+          `${mergedClsPrefix}-date-panel--datetime`,
+          !this.panel && `${mergedClsPrefix}-date-panel--shadow`,
+          this.themeClass
+        ]}
         onKeydown={this.handlePanelKeyDown}
         onFocus={this.handlePanelFocus}
       >
@@ -48,19 +62,20 @@ export default defineComponent({
             onUpdateValue={this.handleDateInput}
           />
           <NTimePicker
+            size={this.timePickerSize}
+            placeholder={this.locale.selectTime}
+            format={this.timerPickerFormat}
+            {...(Array.isArray(timePickerProps) ? undefined : timePickerProps)}
             showIcon={false}
-            format={this.timeFormat}
-            stateful={false}
+            to={false}
             theme={mergedTheme.peers.TimePicker}
             themeOverrides={mergedTheme.peerOverrides.TimePicker}
-            to={false}
-            size={this.timePickerSize}
             value={Array.isArray(this.value) ? null : this.value}
-            placeholder={this.locale.selectTime}
             isHourDisabled={this.isHourDisabled}
             isMinuteDisabled={this.isMinuteDisabled}
             isSecondDisabled={this.isSecondDisabled}
             onUpdateValue={this.handleTimePickerChange}
+            stateful={false}
           />
         </div>
         <div class={`${mergedClsPrefix}-date-panel-calendar`}>
@@ -69,13 +84,13 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month__fast-prev`}
               onClick={this.prevYear}
             >
-              <FastBackwardIcon />
+              {resolveSlot($slots['prev-year'], () => [<FastBackwardIcon />])}
             </div>
             <div
               class={`${mergedClsPrefix}-date-panel-month__prev`}
               onClick={this.prevMonth}
             >
-              <BackwardIcon />
+              {resolveSlot($slots['prev-month'], () => [<BackwardIcon />])}
             </div>
             <PanelHeader
               monthBeforeYear={this.locale.monthBeforeYear}
@@ -89,13 +104,13 @@ export default defineComponent({
               class={`${mergedClsPrefix}-date-panel-month__next`}
               onClick={this.nextMonth}
             >
-              <ForwardIcon />
+              {resolveSlot($slots['next-month'], () => [<ForwardIcon />])}
             </div>
             <div
               class={`${mergedClsPrefix}-date-panel-month__fast-next`}
               onClick={this.nextYear}
             >
-              <FastForwardIcon />
+              {resolveSlot($slots['next-year'], () => [<FastForwardIcon />])}
             </div>
           </div>
           <div class={`${mergedClsPrefix}-date-panel-weekdays`}>
@@ -123,11 +138,19 @@ export default defineComponent({
                     [`${mergedClsPrefix}-date-panel-date--excluded`]:
                       !dateItem.inCurrentMonth,
                     [`${mergedClsPrefix}-date-panel-date--disabled`]:
-                      this.mergedIsDateDisabled(dateItem.ts)
+                      this.mergedIsDateDisabled(dateItem.ts, {
+                        type: 'date',
+                        year: dateItem.dateObject.year,
+                        month: dateItem.dateObject.month,
+                        date: dateItem.dateObject.date
+                      })
                   }
                 ]}
-                onClick={() => this.handleDateClick(dateItem)}
+                onClick={() => {
+                  this.handleDateClick(dateItem)
+                }}
               >
+                <div class={`${mergedClsPrefix}-date-panel-date__trigger`} />
                 {dateItem.dateObject.date}
                 {dateItem.isCurrentDate ? (
                   <div class={`${mergedClsPrefix}-date-panel-date__sup`} />

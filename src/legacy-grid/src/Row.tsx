@@ -1,12 +1,19 @@
-import { defineComponent, h, PropType, provide, Ref, toRef } from 'vue'
+import {
+  defineComponent,
+  h,
+  type PropType,
+  provide,
+  type Ref,
+  toRef
+} from 'vue'
 import { useMemo } from 'vooks'
 import {
   createInjectionKey,
-  ExtractPublicPropTypes,
+  type ExtractPublicPropTypes,
   formatLength,
   keysOf
 } from '../../_utils'
-import { useConfig, useStyle } from '../../_mixins'
+import { useConfig, useStyle, useRtl } from '../../_mixins'
 import style from './styles/index.cssr'
 
 export interface RowInjection {
@@ -37,8 +44,9 @@ export default defineComponent({
   name: 'Row',
   props: rowProps,
   setup (props) {
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, mergedRtlRef } = useConfig(props)
     useStyle('-legacy-grid', style, mergedClsPrefixRef)
+    const rtlEnabledRef = useRtl('Row', mergedRtlRef, mergedClsPrefixRef)
     const verticalGutterRef = useMemo(() => {
       const { gutter } = props
       if (Array.isArray(gutter)) {
@@ -56,11 +64,12 @@ export default defineComponent({
     provide(rowInjectionKey, {
       mergedClsPrefixRef,
       gutterRef: toRef(props, 'gutter'),
-      verticalGutterRef: verticalGutterRef,
-      horizontalGutterRef: horizontalGutterRef
+      verticalGutterRef,
+      horizontalGutterRef
     })
     return {
       mergedClsPrefix: mergedClsPrefixRef,
+      rtlEnabled: rtlEnabledRef,
       styleMargin: useMemo(
         () =>
           `-${formatLength(verticalGutterRef.value, {
@@ -75,7 +84,10 @@ export default defineComponent({
   render () {
     return (
       <div
-        class={`${this.mergedClsPrefix}-row`}
+        class={[
+          `${this.mergedClsPrefix}-row`,
+          this.rtlEnabled && `${this.mergedClsPrefix}-row--rtl`
+        ]}
         style={{
           margin: this.styleMargin,
           width: this.styleWidth,

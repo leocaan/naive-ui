@@ -5,14 +5,15 @@ A year ago, my product manager asked me if I could implement this feature. Back 
 ## Demos
 
 ```demo
-basic
-textarea
-async
-autosize
-form
-render-label
-custom-prefix
-manual-trigger
+basic.vue
+textarea.vue
+async.vue
+autosize.vue
+form.vue
+render-label.vue
+custom-prefix.vue
+manual-trigger.vue
+status.vue
 ```
 
 ## API
@@ -29,14 +30,18 @@ Mention requires `v2.2.0` and above.
 | separator | `string` | `' '` | Character to split mentions. The string length must be exactly 1. |  |
 | bordered | `boolean` | `true` | Whether to display the border of the input element. |  |
 | disabled | `boolean` | `false` | Whether to disable the input element. |  |
-| value | `string \| null` | `undefined` | Manually set input value. |  |
 | default-value | `string` | `''` | Default value when the value is not manually set. |  |
+| filter | `(pattern: string, option: MentionOption) => boolean` | Default filter method | Method to filter options corresponding to `pattern`. | 2.38.2 |
 | loading | `boolean` | `false` | Whether the selection panel of mentions is in a loading state. |  |
 | prefix | `string \| string[]` | `'@'` | Prefix character(s) to trigger mentions. The string length(s) must be exactly 1. |  |
 | placeholder | `string` | `''` | Placeholder. |  |
 | placement | `'top-start' \| 'top' \| 'top-end' \| 'right-start' \| 'right' \| 'right-end' \| 'bottom-start' \| 'bottom' \| 'bottom-end' \| 'left-start' \| 'left' \| 'left-end'` | `'bottom-start'` | Selection panel's placement . | 2.25.0 |
 | render-label | `(option: MentionOption) => VNodeChild` | `undefined` | Options' labels render function. |  |
 | size | `'small' \| 'medium' \| 'large'` | `'medium'` | Input size. |  |
+| status | `'success' \| 'warning' \| 'error'` | `undefined` | Validation status. | 2.27.0 |
+| to | `string \| HTMLElement \| false` | `body` | Container node of the menu. `false` will keep it not detached. |  |
+| value | `string \| null` | `undefined` | Manually set input value. |  |
+| on-update:show | `(show: boolean) => void` | `undefined` | Callback when the selection panel of mentions is shown or hidden. | 2.34.0 |
 | on-update:value | `(value: string) => void` | `undefined` | Triggered when the input box value is updated. |  |
 | on-select | `(option: MentionOption, prefix: string) => void` | `undefined` | Triggered when the input box is selected. |  |
 | on-focus | `(e: FocusEvent) => void` | `undefined` | Triggered when the input box is focussed on. |  |

@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/non-nullable-type-assertion-style */
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { NButton } from '../../button'
 import {
-  DrawerContentProps,
-  DrawerProps,
+  type DrawerContentProps,
+  type DrawerProps,
   NDrawer,
   NDrawerContent
 } from '../index'
@@ -126,12 +127,12 @@ describe('n-drawer', () => {
   })
 
   it('should work with `show` prop', async () => {
-    const wrapper1 = await mountDrawer({
+    const wrapper1 = mountDrawer({
       show: false
     })
     expect(document.querySelector('.n-drawer')).toEqual(null)
     wrapper1.unmount()
-    const wrapper2 = await mountDrawer({
+    const wrapper2 = mountDrawer({
       show: true
     })
     expect(document.querySelector('.n-drawer')).not.toEqual(null)
@@ -156,7 +157,7 @@ describe('n-drawer', () => {
     const onUpdate = jest.fn()
     const mousedownEvent = new MouseEvent('mousedown', { bubbles: true })
     const mouseupEvent = new MouseEvent('mouseup', { bubbles: true })
-    const wrapper = await mountDrawer({
+    const wrapper = mountDrawer({
       show: true,
       hasOnUpdateShow: true,
       drawerProps: { onUpdateShow: onUpdate },
@@ -171,7 +172,7 @@ describe('n-drawer', () => {
   })
 
   it('should work with `header-style` prop', async () => {
-    const wrapper = await mountDrawer({
+    const wrapper = mountDrawer({
       drawerContentProps: {
         title: 'test',
         headerStyle: { backgroundColor: 'red' }
@@ -188,7 +189,7 @@ describe('n-drawer', () => {
   })
 
   it('should work with `body-style` prop', async () => {
-    const wrapper = await mountDrawer({
+    const wrapper = mountDrawer({
       drawerContentProps: {
         title: 'test',
         bodyStyle: { backgroundColor: 'red' }
@@ -202,5 +203,185 @@ describe('n-drawer', () => {
     ).toEqual('red')
 
     wrapper.unmount()
+  })
+
+  it('should work with `resizable` prop', async () => {
+    const originalOffsetHeight = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'offsetHeight'
+    )
+    const originalOffsetWidth = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'offsetWidth'
+    )
+
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      value: 251
+    })
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+      configurable: true,
+      value: 251
+    })
+    // placement top
+    let wrapper = mountDrawer({
+      show: true,
+      drawerProps: { placement: 'top', resizable: true, defaultHeight: 251 }
+    })
+    expect(document.querySelector('.n-drawer')?.className).toContain(
+      'n-drawer--top-placement'
+    )
+    expect(document.querySelector('.n-drawer__resize-trigger')).not.toEqual(
+      null
+    )
+
+    let mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 0,
+      clientY: 251
+    })
+    let mousemoveEvent = new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 0,
+      clientY: 600
+    })
+    let mouseupEvent = new MouseEvent('mouseup', { bubbles: true })
+
+    document
+      .querySelector('.n-drawer__resize-trigger')
+      ?.dispatchEvent(mousedownEvent)
+    document.body.dispatchEvent(mousemoveEvent)
+    document.body.dispatchEvent(mouseupEvent)
+
+    await nextTick()
+    expect(document.querySelector('.n-drawer')?.getAttribute('style')).toBe(
+      'height: 600px;'
+    )
+
+    wrapper.unmount()
+
+    // placement bottom
+    wrapper = mountDrawer({
+      show: true,
+      drawerProps: { placement: 'bottom', resizable: true, defaultHeight: 251 }
+    })
+    expect(document.querySelector('.n-drawer')?.className).toContain(
+      'n-drawer--bottom-placement'
+    )
+    expect(document.querySelector('.n-drawer__resize-trigger')).not.toEqual(
+      null
+    )
+
+    mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 0,
+      clientY: 600
+    })
+    mousemoveEvent = new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 0,
+      clientY: 251
+    })
+    mouseupEvent = new MouseEvent('mouseup', { bubbles: true })
+
+    document
+      .querySelector('.n-drawer__resize-trigger')
+      ?.dispatchEvent(mousedownEvent)
+    document.body.dispatchEvent(mousemoveEvent)
+    document.body.dispatchEvent(mouseupEvent)
+
+    await nextTick()
+    expect(document.querySelector('.n-drawer')?.getAttribute('style')).toBe(
+      'height: 600px;'
+    )
+
+    wrapper.unmount()
+
+    // placement left
+    wrapper = mountDrawer({
+      show: true,
+      drawerProps: { placement: 'left', resizable: true, defaultWidth: 251 }
+    })
+    expect(document.querySelector('.n-drawer')?.className).toContain(
+      'n-drawer--left-placement'
+    )
+    expect(document.querySelector('.n-drawer__resize-trigger')).not.toEqual(
+      null
+    )
+
+    mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 251,
+      clientY: 0
+    })
+    mousemoveEvent = new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 600,
+      clientY: 0
+    })
+    mouseupEvent = new MouseEvent('mouseup', { bubbles: true })
+
+    document
+      .querySelector('.n-drawer__resize-trigger')
+      ?.dispatchEvent(mousedownEvent)
+    document.body.dispatchEvent(mousemoveEvent)
+    document.body.dispatchEvent(mouseupEvent)
+
+    await nextTick()
+    expect(document.querySelector('.n-drawer')?.getAttribute('style')).toBe(
+      'width: 600px;'
+    )
+
+    wrapper.unmount()
+
+    // placement right
+    wrapper = mountDrawer({
+      show: true,
+      drawerProps: { placement: 'right', resizable: true, defaultWidth: 251 }
+    })
+    expect(document.querySelector('.n-drawer')?.className).toContain(
+      'n-drawer--right-placement'
+    )
+    expect(document.querySelector('.n-drawer__resize-trigger')).not.toEqual(
+      null
+    )
+
+    mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      clientX: 600,
+      clientY: 0
+    })
+    mousemoveEvent = new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 251,
+      clientY: 0
+    })
+    mouseupEvent = new MouseEvent('mouseup', { bubbles: true })
+
+    document
+      .querySelector('.n-drawer__resize-trigger')
+      ?.dispatchEvent(mousedownEvent)
+    document.body.dispatchEvent(mousemoveEvent)
+    document.body.dispatchEvent(mouseupEvent)
+
+    await nextTick()
+    expect(document.querySelector('.n-drawer')?.getAttribute('style')).toBe(
+      'width: 600px;'
+    )
+
+    wrapper.unmount()
+
+    Object.defineProperty(
+      HTMLElement.prototype,
+      'offsetHeight',
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      originalOffsetHeight!
+    )
+    Object.defineProperty(
+      HTMLElement.prototype,
+      'offsetWidth',
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      originalOffsetWidth!
+    )
   })
 })

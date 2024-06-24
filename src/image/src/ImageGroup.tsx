@@ -1,16 +1,29 @@
-import { defineComponent, h, ref, provide, getCurrentInstance, Ref } from 'vue'
+import {
+  defineComponent,
+  h,
+  ref,
+  provide,
+  getCurrentInstance,
+  type Ref,
+  toRef
+} from 'vue'
 import { createId } from 'seemly'
-import { createInjectionKey, ExtractPublicPropTypes } from '../../_utils'
+import { createInjectionKey, type ExtractPublicPropTypes } from '../../_utils'
 import { useConfig } from '../../_mixins'
 import NImagePreview from './ImagePreview'
 import type { ImagePreviewInst } from './ImagePreview'
 import { imagePreviewSharedProps } from './interface'
+import type { ImageRenderToolbar } from './public-types'
 
 export const imageGroupInjectionKey = createInjectionKey<
-ImagePreviewInst & { groupId: string, mergedClsPrefixRef: Ref<string> }
+ImagePreviewInst & {
+  groupId: string
+  mergedClsPrefixRef: Ref<string>
+  renderToolbarRef: Ref<ImageRenderToolbar | undefined>
+}
 >('n-image-group')
 
-const imageGroupProps = imagePreviewSharedProps
+export const imageGroupProps = imagePreviewSharedProps
 
 export type ImageGroupProps = ExtractPublicPropTypes<typeof imageGroupProps>
 
@@ -26,12 +39,13 @@ export default defineComponent({
       currentSrc = src
       previewInstRef.value?.setPreviewSrc(src)
     }
+
     function go (step: 1 | -1): void {
       if (!vm?.proxy) return
       const container: HTMLElement = vm.proxy.$el.parentElement
       // use dom api since we can't get the correct order before all children are rendered
       const imgs: NodeListOf<HTMLImageElement> = container.querySelectorAll(
-        `.${groupId}:not([data-error=true])`
+        `[data-group-id=${groupId}]:not([data-error=true])`
       )
 
       if (!imgs.length) return
@@ -45,6 +59,7 @@ export default defineComponent({
       } else {
         setPreviewSrc(imgs[0].dataset.previewSrc)
       }
+      step === 1 ? props.onPreviewNext?.() : props.onPreviewPrev?.()
     }
     provide(imageGroupInjectionKey, {
       mergedClsPrefixRef,
@@ -55,14 +70,19 @@ export default defineComponent({
       toggleShow: () => {
         previewInstRef.value?.toggleShow()
       },
-      groupId
+      groupId,
+      renderToolbarRef: toRef(props, 'renderToolbar')
     })
     const previewInstRef = ref<ImagePreviewInst | null>(null)
     return {
       mergedClsPrefix: mergedClsPrefixRef,
       previewInstRef,
-      next: () => go(1),
-      prev: () => go(-1)
+      next: () => {
+        go(1)
+      },
+      prev: () => {
+        go(-1)
+      }
     }
   },
   render () {
@@ -76,6 +96,7 @@ export default defineComponent({
         onNext={this.next}
         showToolbar={this.showToolbar}
         showToolbarTooltip={this.showToolbarTooltip}
+        renderToolbar={this.renderToolbar}
       >
         {this.$slots}
       </NImagePreview>

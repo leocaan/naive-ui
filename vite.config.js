@@ -1,6 +1,9 @@
 const path = require('path')
 const { babel } = require('@rollup/plugin-babel')
 const createDemoPlugin = require('./build/vite-plugin-demo')
+const dns = require('dns')
+
+dns.setDefaultResultOrder('verbatim')
 
 /**
  * @type {import('vite').UserConfig}
@@ -30,7 +33,8 @@ module.exports = {
       '@css-render/plugin-bem',
       'async-validator',
       'css-render',
-      'date-fns',
+      'date-fns/esm',
+      'date-fns-tz/getTimezoneOffset',
       'evtd',
       'highlight.js',
       'lodash-es',
@@ -44,6 +48,7 @@ module.exports = {
       '@css-render/vue3-ssr',
       'date-fns-tz',
       'codesandbox/lib/api/define',
+      'grapheme-splitter',
       'highlight.js/lib/core',
       'highlight.js/lib/languages/javascript',
       'highlight.js/lib/languages/python',
@@ -51,29 +56,40 @@ module.exports = {
       'highlight.js/lib/languages/xml',
       '@vicons/ionicons5',
       '@vicons/ionicons4',
-      'date-fns/locale/nb',
-      'date-fns/locale/fr',
-      'date-fns/locale/id',
-      'date-fns/locale/de',
-      'date-fns/locale/ja',
-      'date-fns/locale/zh-CN',
-      'date-fns/locale/en-US',
-      'date-fns/locale/ru',
-      'date-fns/locale/uk',
-      'date-fns/locale/zh-TW',
-      'date-fns/locale/es',
-      'date-fns/locale/it'
+      '@vicons/fluent/Compose16Regular.js',
+      'date-fns/esm/locale/nb',
+      'date-fns/esm/locale/fr',
+      'date-fns/esm/locale/id',
+      'date-fns/esm/locale/de',
+      'date-fns/esm/locale/ja',
+      'date-fns/esm/locale/zh-CN',
+      'date-fns/esm/locale/en-US',
+      'date-fns/esm/locale/ru',
+      'date-fns/esm/locale/uk',
+      'date-fns/esm/locale/zh-TW',
+      'date-fns/esm/locale/es',
+      'date-fns/esm/locale/it',
+      'date-fns/esm/locale/en-GB',
+      'date-fns/esm/locale/pl',
+      'date-fns/esm/locale/eo',
+      'date-fns/esm/locale/sk',
+      'date-fns/esm/locale/pt-BR',
+      'date-fns/esm/locale/th',
+      'date-fns/esm/locale/ko',
+      'date-fns/esm/locale/nl',
+      'date-fns/esm/locale/ar'
     ],
     exclude: ['__INDEX__']
   },
   build: {
     outDir: 'site',
+    output: {
+      manualChunks: {
+        'grapheme-splitter': ['grapheme-splitter'],
+        katex: ['katex']
+      }
+    },
     rollupOptions: {
-      output: {
-        manualChunks: {
-          axios: ['axios']
-        }
-      },
       plugins: [
         babel({
           babelHelpers: 'bundled'
@@ -82,6 +98,7 @@ module.exports = {
     }
   },
   esbuild: {
+    jsx: 'transform',
     jsxFactory: 'h',
     jsxFragment: 'Fragment'
   }

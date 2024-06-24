@@ -2,27 +2,38 @@ import {
   h,
   defineComponent,
   computed,
-  CSSProperties,
-  PropType,
+  type CSSProperties,
+  type PropType,
   provide,
   toRef,
   mergeProps,
   ref,
-  VNode,
-  Ref,
-  cloneVNode
+  type VNode,
+  type Ref,
+  cloneVNode,
+  vShow,
+  onMounted
 } from 'vue'
 import { useBreakpoints, useMemo } from 'vooks'
-import { VResizeObserver, VResizeObserverOnResize } from 'vueuc'
+import { VResizeObserver, type VResizeObserverOnResize } from 'vueuc'
 import { pxfy, parseResponsivePropValue, beforeNextFrameOnce } from 'seemly'
 import { defaultBreakpoints } from '../../config-provider/src/config'
 import { useConfig } from '../../_mixins'
-import { getSlot, flatten, ExtractPublicPropTypes } from '../../_utils'
+import {
+  getSlot,
+  flatten,
+  type ExtractPublicPropTypes,
+  isBrowser,
+  isNodeVShowFalse
+} from '../../_utils'
 import { defaultSpan, gridInjectionKey } from './config'
 
 const defaultCols = 24
 
-const gridProps = {
+const SSR_ATTR_NAME = '__ssr__'
+
+export const gridProps = {
+  layoutShiftDisabled: Boolean,
   responsive: {
     type: [String, Boolean] as PropType<'self' | 'screen'>,
     default: 'self'
@@ -50,9 +61,11 @@ const gridProps = {
 } as const
 
 export interface NGridInjection {
+  isSsrRef: Ref<boolean>
   itemStyleRef: Ref<CSSProperties | string | undefined>
   xGapRef: Ref<string | undefined>
   overflowRef: Ref<boolean>
+  layoutShiftDisabledRef: Ref<boolean>
 }
 
 export type GridProps = ExtractPublicPropTypes<typeof gridProps>
@@ -62,11 +75,11 @@ export default defineComponent({
   inheritAttrs: false,
   props: gridProps,
   setup (props) {
-    const { mergedClsPrefixRef, NConfigProvider } = useConfig(props)
+    const { mergedClsPrefixRef, mergedBreakpointsRef } = useConfig(props)
     const numRegex = /^\d+$/
     const widthRef = ref<number | undefined>(undefined)
     const breakpointsRef = useBreakpoints(
-      NConfigProvider?.mergedBreakpointsRef.value || defaultBreakpoints
+      mergedBreakpointsRef?.value || defaultBreakpoints
     )
     const isResponsiveRef = useMemo(() => {
       if (props.itemResponsive) return true
@@ -110,14 +123,42 @@ export default defineComponent({
         return undefined
       }
     )
+
+    // for SSR, fix bug https://github.com/tusen-ai/naive-ui/issues/2462
+    const isSsrRef = ref(false)
+    const contentElRef = ref<HTMLElement>()
+    onMounted(() => {
+      const { value: contentEl } = contentElRef
+      if (contentEl) {
+        if (contentEl.hasAttribute(SSR_ATTR_NAME)) {
+          contentEl.removeAttribute(SSR_ATTR_NAME)
+          isSsrRef.value = true
+        }
+      }
+    })
+
     provide(gridInjectionKey, {
+      layoutShiftDisabledRef: toRef(props, 'layoutShiftDisabled'),
+      isSsrRef,
       itemStyleRef: toRef(props, 'itemStyle'),
       xGapRef: responsiveXGapRef,
       overflowRef
     })
+
     return {
+      isSsr: !isBrowser,
+      contentEl: contentElRef,
       mergedClsPrefix: mergedClsPrefixRef,
       style: computed<CSSProperties>(() => {
+        if (props.layoutShiftDisabled) {
+          return {
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${props.cols}, minmax(0, 1fr))`,
+            columnGap: pxfy(props.xGap),
+            rowGap: pxfy(props.yGap)
+          }
+        }
         return {
           width: '100%',
           display: 'grid',
@@ -134,6 +175,21 @@ export default defineComponent({
     }
   },
   render () {
+    if (this.layoutShiftDisabled) {
+      return h(
+        'div',
+        mergeProps(
+          {
+            ref: 'contentEl',
+            class: `${this.mergedClsPrefix}-grid`,
+            style: this.style
+          },
+          this.$attrs
+        ),
+        this.$slots
+      )
+    }
+
     const renderContent = (): VNode => {
       this.overflow = false
 
@@ -150,6 +206,28 @@ export default defineComponent({
 
       rawChildren.forEach((child) => {
         if ((child?.type as any)?.__GRID_ITEM__ !== true) return
+
+        if (isNodeVShowFalse(child)) {
+          const clonedNode = cloneVNode(child)
+          if (clonedNode.props) {
+            clonedNode.props.privateShow = false
+          } else {
+            clonedNode.props = { privateShow: false }
+          }
+          childrenAndRawSpan.push({
+            child: clonedNode,
+            rawChildSpan: 0
+          })
+          return
+        }
+
+        // We don't want v-show to control display, so we need to stripe it
+        // here, nor it may mess child's style
+        child.dirs = child.dirs?.filter(({ dir }) => dir !== vShow) || null
+
+        if (child.dirs?.length === 0) {
+          child.dirs = null
+        }
         const clonedChild = cloneVNode(child)
 
         const rawChildSpan = Number(
@@ -160,7 +238,6 @@ export default defineComponent({
         )
 
         if (rawChildSpan === 0) return
-
         childrenAndRawSpan.push({
           child: clonedChild,
           rawChildSpan
@@ -173,11 +250,17 @@ export default defineComponent({
       if (maybeSuffixNode?.props) {
         const suffixPropValue = maybeSuffixNode.props?.suffix
         if (suffixPropValue !== undefined && suffixPropValue !== false) {
-          suffixSpan = maybeSuffixNode.props?.span ?? defaultSpan
+          suffixSpan = Number(
+            parseResponsivePropValue(
+              maybeSuffixNode.props?.span as string | number | null | undefined,
+              responsiveQuery
+            ) ?? defaultSpan
+          )
           maybeSuffixNode.props.privateSpan = suffixSpan
           maybeSuffixNode.props.privateColStart =
             responsiveCols + 1 - suffixSpan
-          maybeSuffixNode.props.privateShow = true
+          maybeSuffixNode.props.privateShow =
+            maybeSuffixNode.props.privateShow ?? true
         }
       }
 
@@ -195,10 +278,8 @@ export default defineComponent({
               responsiveQuery
             ) ?? 0
           )
-
-          const childSpan =
-            Math.min(rawChildSpan + childOffset, responsiveCols) || 1
-
+          // it could be 0 sometimes (v-show = false)
+          const childSpan = Math.min(rawChildSpan + childOffset, responsiveCols)
           if (!child.props) {
             child.props = {
               privateSpan: childSpan,
@@ -225,6 +306,7 @@ export default defineComponent({
         }
         if (done) {
           if (child.props) {
+            // suffix node's privateShow may be true
             if (child.props.privateShow !== true) {
               child.props.privateShow = false
             }
@@ -235,13 +317,14 @@ export default defineComponent({
           }
         }
       }
-
       return h(
         'div',
         mergeProps(
           {
+            ref: 'contentEl',
             class: `${this.mergedClsPrefix}-grid`,
-            style: this.style
+            style: this.style,
+            [SSR_ATTR_NAME]: this.isSsr || undefined
           },
           this.$attrs
         ),

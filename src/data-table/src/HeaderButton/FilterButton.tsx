@@ -1,12 +1,12 @@
-import { h, defineComponent, ref, computed, PropType, inject } from 'vue'
+import { h, defineComponent, ref, computed, type PropType, inject } from 'vue'
 import { FilterIcon } from '../../../_internal/icons'
 import { NBaseIcon } from '../../../_internal'
 import { NPopover } from '../../../popover'
 import RenderFilter from './RenderFilter'
 import NDataTableFilterMenu from './FilterMenu'
-import {
+import { dataTableInjectionKey } from '../interface'
+import type {
   ColumnKey,
-  dataTableInjectionKey,
   FilterOption,
   FilterOptionValue,
   FilterState,
@@ -37,12 +37,14 @@ export default defineComponent({
     }
   },
   setup (props) {
-    const { NConfigProvider } = useConfig()
+    const { mergedComponentPropsRef } = useConfig()
     const {
       mergedThemeRef,
       mergedClsPrefixRef,
       mergedFilterStateRef,
       filterMenuCssVarsRef,
+      paginationBehaviorOnFilterRef,
+      doUpdatePage,
       doUpdateFilters
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     } = inject(dataTableInjectionKey)!
@@ -69,8 +71,8 @@ export default defineComponent({
     })
     const mergedRenderFilterRef = computed(() => {
       return (
-        NConfigProvider?.mergedComponentPropsRef.value?.DataTable
-          ?.renderFilter || props.column.renderFilter
+        mergedComponentPropsRef?.value?.DataTable?.renderFilter ||
+        props.column.renderFilter
       )
     })
     function handleFilterChange (
@@ -82,6 +84,9 @@ export default defineComponent({
         mergedFilterValue
       )
       doUpdateFilters(nextFilterState, props.column)
+      if (paginationBehaviorOnFilterRef.value === 'first') {
+        doUpdatePage(1)
+      }
     }
     function handleFilterMenuCancel (): void {
       showPopoverRef.value = false

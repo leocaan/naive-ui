@@ -1,34 +1,31 @@
-import {
-  computed,
-  defineComponent,
-  h,
-  PropType,
-  CSSProperties,
-  Ref,
-  provide
-} from 'vue'
-import { useConfig, useTheme } from '../../_mixins'
+import { computed, defineComponent, h, provide, toRef } from 'vue'
+import type { PropType, CSSProperties, Ref } from 'vue'
+import { useConfig, useTheme, useThemeClass, useRtl } from '../../_mixins'
 import type { ThemeProps } from '../../_mixins'
-import { createInjectionKey, ExtractPublicPropTypes } from '../../_utils'
+import { createInjectionKey, type ExtractPublicPropTypes } from '../../_utils'
 import { listLight } from '../styles'
 import type { ListTheme } from '../styles'
 import style from './styles/index.cssr'
 
-const listProps = {
+export const listProps = {
   ...(useTheme.props as ThemeProps<ListTheme>),
   size: {
     type: String as PropType<'small' | 'medium' | 'large'>,
     default: 'medium'
   },
-  bordered: {
+  bordered: Boolean,
+  clickable: Boolean,
+  hoverable: Boolean,
+  showDivider: {
     type: Boolean,
-    default: false
+    default: true
   }
 }
 
 export type ListProps = ExtractPublicPropTypes<typeof listProps>
 
 interface ListInjection {
+  showDividerRef: Ref<boolean>
   mergedClsPrefixRef: Ref<string>
 }
 
@@ -38,7 +35,9 @@ export default defineComponent({
   name: 'List',
   props: listProps,
   setup (props) {
-    const { mergedClsPrefixRef } = useConfig(props)
+    const { mergedClsPrefixRef, inlineThemeDisabled, mergedRtlRef } =
+      useConfig(props)
+    const rtlEnabledRef = useRtl('List', mergedRtlRef, mergedClsPrefixRef)
     const themeRef = useTheme(
       'List',
       '-list',
@@ -48,47 +47,68 @@ export default defineComponent({
       mergedClsPrefixRef
     )
     provide(listInjectionKey, {
+      showDividerRef: toRef(props, 'showDivider'),
       mergedClsPrefixRef
     })
+    const cssVarsRef = computed(() => {
+      const {
+        common: { cubicBezierEaseInOut },
+        self: {
+          fontSize,
+          textColor,
+          color,
+          colorModal,
+          colorPopover,
+          borderColor,
+          borderColorModal,
+          borderColorPopover,
+          borderRadius,
+          colorHover,
+          colorHoverModal,
+          colorHoverPopover
+        }
+      } = themeRef.value
+      return {
+        '--n-font-size': fontSize,
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-text-color': textColor,
+        '--n-color': color,
+        '--n-border-radius': borderRadius,
+        '--n-border-color': borderColor,
+        '--n-border-color-modal': borderColorModal,
+        '--n-border-color-popover': borderColorPopover,
+        '--n-color-modal': colorModal,
+        '--n-color-popover': colorPopover,
+        '--n-color-hover': colorHover,
+        '--n-color-hover-modal': colorHoverModal,
+        '--n-color-hover-popover': colorHoverPopover
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('list', undefined, cssVarsRef, props)
+      : undefined
+
     return {
       mergedClsPrefix: mergedClsPrefixRef,
-      cssVars: computed(() => {
-        const {
-          common: { cubicBezierEaseInOut },
-          self: {
-            fontSize,
-            textColor,
-            color,
-            colorModal,
-            colorPopover,
-            borderColor,
-            borderColorModal,
-            borderColorPopover,
-            borderRadius
-          }
-        } = themeRef.value
-        return {
-          '--n-font-size': fontSize,
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-text-color': textColor,
-          '--n-color': color,
-          '--n-border-radius': borderRadius,
-          '--n-border-color': borderColor,
-          '--n-border-color-modal': borderColorModal,
-          '--n-border-color-popover': borderColorPopover,
-          '--n-color-modal': colorModal,
-          '--n-color-popover': colorPopover
-        }
-      })
+      rtlEnabled: rtlEnabledRef,
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
-    const { $slots, mergedClsPrefix } = this
+    const { $slots, mergedClsPrefix, onRender } = this
+    onRender?.()
     return (
       <ul
         class={[
           `${mergedClsPrefix}-list`,
-          this.bordered && `${mergedClsPrefix}-list--bordered`
+          this.rtlEnabled && `${mergedClsPrefix}-list--rtl`,
+          this.bordered && `${mergedClsPrefix}-list--bordered`,
+          this.showDivider && `${mergedClsPrefix}-list--show-divider`,
+          this.hoverable && `${mergedClsPrefix}-list--hoverable`,
+          this.clickable && `${mergedClsPrefix}-list--clickable`,
+          this.themeClass
         ]}
         style={this.cssVars as CSSProperties}
       >

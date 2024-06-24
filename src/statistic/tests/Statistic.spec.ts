@@ -11,6 +11,7 @@ describe('n-statistic', () => {
 
     expect(wrapper.find('.n-statistic__label').exists()).toBe(true)
     expect(wrapper.find('.n-statistic__label').text()).toBe('test')
+    wrapper.unmount()
   })
 
   it('should work with `value` prop', async () => {
@@ -18,6 +19,22 @@ describe('n-statistic', () => {
 
     expect(wrapper.find('.n-statistic-value__content').exists()).toBe(true)
     expect(wrapper.find('.n-statistic-value__content').text()).toBe('test')
+    wrapper.unmount()
+  })
+
+  it('should work with `tabularNums` prop', async () => {
+    const wrapper = mount(NStatistic, {
+      props: {
+        value: 10001
+      }
+    })
+
+    expect(wrapper.find('.n-statistic-value').attributes('style')).toBeFalsy()
+    await wrapper.setProps({ tabularNums: true })
+    expect(wrapper.find('.n-statistic-value').attributes('style')).toContain(
+      'font-variant-numeric: tabular-nums;'
+    )
+    wrapper.unmount()
   })
 
   it('should work with `default` slot', async () => {
@@ -25,6 +42,7 @@ describe('n-statistic', () => {
 
     expect(wrapper.find('.n-statistic-value__content').exists()).toBe(true)
     expect(wrapper.find('.n-statistic-value__content').text()).toBe('test')
+    wrapper.unmount()
   })
 
   it('should work with `label` slot', async () => {
@@ -32,6 +50,7 @@ describe('n-statistic', () => {
 
     expect(wrapper.find('.n-statistic__label').exists()).toBe(true)
     expect(wrapper.find('.n-statistic__label').text()).toBe('test')
+    wrapper.unmount()
   })
 
   it('should work with `prefix` slot', async () => {
@@ -39,6 +58,7 @@ describe('n-statistic', () => {
 
     expect(wrapper.find('.n-statistic-value__prefix').exists()).toBe(true)
     expect(wrapper.find('.n-statistic-value__prefix').text()).toBe('test')
+    wrapper.unmount()
   })
 
   it('should work with `suffix` slot', async () => {
@@ -46,5 +66,6 @@ describe('n-statistic', () => {
 
     expect(wrapper.find('.n-statistic-value__suffix').exists()).toBe(true)
     expect(wrapper.find('.n-statistic-value__suffix').text()).toBe('test')
+    wrapper.unmount()
   })
 })

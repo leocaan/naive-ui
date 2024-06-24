@@ -20,11 +20,19 @@ export default {
   calendarLeftPaddingMonth: '0', // TODO: make it actually effective
   calendarLeftPaddingYear: '0',
   calendarLeftPaddingQuarter: '0',
+  calendarLeftPaddingMonthrange: '0',
+  calendarLeftPaddingQuarterrange: '0',
+  calendarLeftPaddingYearrange: '0',
+  calendarLeftPaddingWeek: '6px 12px 4px 12px',
   calendarRightPaddingDate: '6px 12px 4px 12px',
   calendarRightPaddingDatetime: '4px 12px',
   calendarRightPaddingDaterange: '6px 12px 4px 12px',
   calendarRightPaddingDatetimerange: '4px 12px',
   calendarRightPaddingMonth: '0',
   calendarRightPaddingYear: '0',
-  calendarRightPaddingQuarter: '0'
+  calendarRightPaddingQuarter: '0',
+  calendarRightPaddingMonthrange: '0',
+  calendarRightPaddingQuarterrange: '0',
+  calendarRightPaddingYearrange: '0',
+  calendarRightPaddingWeek: '0'
 }

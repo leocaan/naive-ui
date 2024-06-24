@@ -1,4 +1,4 @@
-import { PropType } from 'vue'
+import { type PropType } from 'vue'
 
 export interface TagColor {
   color?: string
@@ -16,7 +16,7 @@ export default {
   },
   round: Boolean,
   size: {
-    type: String as PropType<'small' | 'medium' | 'large'>,
+    type: String as PropType<'tiny' | 'small' | 'medium' | 'large'>,
     default: 'medium'
   },
   closable: Boolean,

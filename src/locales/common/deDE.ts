@@ -5,7 +5,8 @@ const deDE: NLocale = {
   global: {
     undo: 'Rückgängig',
     redo: 'Wiederholen',
-    confirm: 'Bestätigen'
+    confirm: 'Bestätigen',
+    clear: 'Löschen'
   },
   Popconfirm: {
     positiveText: 'Bestätigen',
@@ -30,6 +31,7 @@ const deDE: NLocale = {
     dateFormat: 'dd.MM.yyyy',
     dateTimeFormat: 'dd.MM.yyyy HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Löschen',
     now: 'Jetzt',
     confirm: 'Bestätigen',
@@ -40,10 +42,13 @@ const deDE: NLocale = {
     monthPlaceholder: 'Monat auswählen',
     yearPlaceholder: 'Jahr auswählen',
     quarterPlaceholder: 'Quartal auswählen',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Anfangsdatum',
     endDatePlaceholder: 'Enddatum',
     startDatetimePlaceholder: 'Anfangsdatum und Uhrzeit',
     endDatetimePlaceholder: 'Enddatum und Uhrzeit',
+    startMonthPlaceholder: 'Anfangsmonat',
+    endMonthPlaceholder: 'Endmonat',
     monthBeforeYear: true,
     firstDayOfWeek: 0 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'Heute'
@@ -54,9 +59,16 @@ const deDE: NLocale = {
     confirm: 'Bestätigen',
     clear: 'Löschen'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Quelle',
     targetTitle: 'Ziel'
+  },
+  Transfer: {
+    selectAll: 'Alle auswählen',
+    unselectAll: 'Alle abwählen',
+    clearAll: 'Leeren',
+    total: (num: number): string => `Insgesamt ${num} Einträge`,
+    selected: (num: number): string => `${num} Einträge ausgewählt`
   },
   Empty: {
     description: 'Keine Daten'
@@ -68,7 +80,8 @@ const deDE: NLocale = {
     placeholder: 'Uhrzeit auswählen',
     positiveText: 'OK',
     negativeText: 'Abbrechen',
-    now: 'Jetzt'
+    now: 'Jetzt',
+    clear: 'Löschen'
   },
   Pagination: {
     goto: 'Gehe zu',
@@ -106,7 +119,9 @@ const deDE: NLocale = {
     tipClockwise: 'Uhrzeigersinn',
     tipZoomOut: 'Rauszoomen',
     tipZoomIn: 'Reinzoomen',
-    tipClose: 'Schließen (Esc)'
+    tipDownload: 'Download',
+    tipClose: 'Schließen (Esc)',
+    tipOriginalSize: 'Zoom zurücksetzen'
   }
 }
 

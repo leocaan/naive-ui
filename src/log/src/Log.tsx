@@ -4,15 +4,21 @@ import {
   defineComponent,
   computed,
   provide,
-  PropType,
+  type PropType,
   nextTick,
   ref,
   toRef,
-  Ref
+  type Ref
 } from 'vue'
 import { throttle } from 'lodash-es'
-import { useTheme, useHljs, ThemeProps, useConfig } from '../../_mixins'
-import type { Hljs } from '../../_mixins'
+import {
+  useTheme,
+  useHljs,
+  type ThemeProps,
+  useConfig,
+  useThemeClass,
+  type Hljs
+} from '../../_mixins'
 import type { ExtractPublicPropTypes } from '../../_utils'
 import { warn } from '../../_utils'
 import { NScrollbar } from '../../_internal'
@@ -34,13 +40,13 @@ export interface LogInjection {
 
 export interface LogInst {
   scrollTo: ((options: {
-    slient?: boolean
+    silent?: boolean
     position: 'top' | 'bottom'
   }) => void) &
-    ((options: { slient?: boolean, top: number }) => void)
+  ((options: { silent?: boolean, top: number }) => void)
 }
 
-const logProps = {
+export const logProps = {
   ...(useTheme.props as ThemeProps<LogTheme>),
   loading: Boolean,
   trim: Boolean,
@@ -82,8 +88,8 @@ export default defineComponent({
   name: 'Log',
   props: logProps,
   setup (props) {
-    const { mergedClsPrefixRef } = useConfig(props)
-    const slientRef = ref(false)
+    const { mergedClsPrefixRef, inlineThemeDisabled } = useConfig(props)
+    const silentRef = ref(false)
     const highlightRef = computed(() => {
       return props.language !== undefined
     })
@@ -111,9 +117,9 @@ export default defineComponent({
     function handleScroll (e: Event): void {
       const container = e.target as HTMLElement
       const content = container.firstElementChild as HTMLElement
-      if (slientRef.value) {
+      if (silentRef.value) {
         void nextTick(() => {
-          slientRef.value = false
+          silentRef.value = false
         })
         return
       }
@@ -135,9 +141,9 @@ export default defineComponent({
     }
     const handleWheel = throttle(_handleWheel, 300)
     function _handleWheel (e: WheelEvent): void {
-      if (slientRef.value) {
+      if (silentRef.value) {
         void nextTick(() => {
-          slientRef.value = false
+          silentRef.value = false
         })
         return
       }
@@ -163,20 +169,20 @@ export default defineComponent({
       }
     }
     function scrollTo (options: {
-      slient?: boolean
+      silent?: boolean
       position: 'top' | 'bottom'
     }): void
-    function scrollTo (options: { slient?: boolean, top: number }): void
+    function scrollTo (options: { silent?: boolean, top: number }): void
     function scrollTo (options: {
-      slient?: boolean
+      silent?: boolean
       top?: number
       position?: 'top' | 'bottom'
     }): void {
       const { value: scrollbarInst } = scrollbarRef
       if (!scrollbarInst) return
-      const { slient, top, position } = options
-      if (slient) {
-        slientRef.value = true
+      const { silent, top, position } = options
+      if (silent) {
+        silentRef.value = true
       }
       if (top !== undefined) {
         scrollbarInst.scrollTo({ left: 0, top })
@@ -185,24 +191,24 @@ export default defineComponent({
       }
     }
     // deprecated
-    function scrollToTop (slient = false): void {
+    function scrollToTop (silent = false): void {
       warn(
         'log',
         "`scrollToTop` is deprecated, please use `scrollTo({ position: 'top'})` instead."
       )
       scrollTo({
         position: 'top',
-        slient
+        silent
       })
     }
-    function scrollToBottom (slient = false): void {
+    function scrollToBottom (silent = false): void {
       warn(
         'log',
         "`scrollToTop` is deprecated, please use `scrollTo({ position: 'bottom'})` instead."
       )
       scrollTo({
         position: 'bottom',
-        slient
+        silent
       })
     }
     provide(logInjectionKey, {
@@ -216,6 +222,30 @@ export default defineComponent({
       scrollTo
     }
 
+    const cssVarsRef = computed(() => {
+      const {
+        self: {
+          loaderFontSize,
+          loaderTextColor,
+          loaderColor,
+          loaderBorder,
+          loadingColor
+        },
+        common: { cubicBezierEaseInOut }
+      } = themeRef.value
+      return {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-loader-font-size': loaderFontSize,
+        '--n-loader-border': loaderBorder,
+        '--n-loader-color': loaderColor,
+        '--n-loader-text-color': loaderTextColor,
+        '--n-loading-color': loadingColor
+      }
+    })
+    const themeClassHandle = inlineThemeDisabled
+      ? useThemeClass('log', undefined, cssVarsRef, props)
+      : undefined
+
     return {
       ...exportedMethods,
       mergedClsPrefix: mergedClsPrefixRef,
@@ -227,34 +257,18 @@ export default defineComponent({
       scrollToBottom,
       handleWheel,
       handleScroll,
-      cssVars: computed(() => {
-        const {
-          self: {
-            loaderFontSize,
-            loaderTextColor,
-            loaderColor,
-            loaderBorder,
-            loadingColor
-          },
-          common: { cubicBezierEaseInOut }
-        } = themeRef.value
-        return {
-          '--n-bezier': cubicBezierEaseInOut,
-          '--n-loader-font-size': loaderFontSize,
-          '--n-loader-border': loaderBorder,
-          '--n-loader-color': loaderColor,
-          '--n-loader-text-color': loaderTextColor,
-          '--n-loading-color': loadingColor
-        }
-      })
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
-    const { mergedClsPrefix, mergedTheme } = this
+    const { mergedClsPrefix, mergedTheme, onRender } = this
+    onRender?.()
     return h(
       'div',
       {
-        class: `${mergedClsPrefix}-log`,
+        class: [`${mergedClsPrefix}-log`, this.themeClass],
         style: [
           {
             lineHeight: this.lineHeight,

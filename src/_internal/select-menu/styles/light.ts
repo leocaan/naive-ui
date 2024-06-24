@@ -36,7 +36,7 @@ export const self = (vars: ThemeCommonVars) => {
     optionHeightMedium: heightMedium,
     optionHeightLarge: heightLarge,
     optionHeightHuge: heightHuge,
-    borderRadius: borderRadius,
+    borderRadius,
     color: popoverColor,
     groupHeaderTextColor: textColor3,
     actionDividerColor: dividerColor,
@@ -47,7 +47,8 @@ export const self = (vars: ThemeCommonVars) => {
     optionOpacityDisabled: opacityDisabled,
     optionCheckColor: primaryColor,
     optionColorPending: hoverColor,
-    optionColorActive: hoverColor,
+    optionColorActive: 'rgba(0, 0, 0, 0)',
+    optionColorActivePending: hoverColor,
     actionTextColor: textColor2,
     loadingColor: primaryColor
   }

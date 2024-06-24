@@ -3,41 +3,50 @@ import {
   h,
   defineComponent,
   Fragment,
-  PropType,
+  type PropType,
   ref,
   computed,
   watch,
   toRef,
   nextTick,
-  CSSProperties,
+  type CSSProperties,
   watchEffect,
   onMounted,
-  InputHTMLAttributes
+  type InputHTMLAttributes,
+  type VNode
 } from 'vue'
-import { VOverflow, VOverflowInst } from 'vueuc'
+import { VOverflow, type VOverflowInst } from 'vueuc'
+import type {
+  RenderLabel,
+  RenderLabelImpl
+} from '../../select-menu/src/interface'
 import type { SelectBaseOption } from '../../../select/src/interface'
 import type { FormValidationStatus } from '../../../form/src/interface'
 import type { TagRef } from '../../../tag/src/Tag'
-import { NPopover } from '../../../popover'
+import { NPopover, type PopoverProps } from '../../../popover'
 import { NTag } from '../../../tag'
-import { useThemeClass, useTheme } from '../../../_mixins'
+import { useThemeClass, useTheme, useRtl, useConfig } from '../../../_mixins'
 import type { ThemeProps } from '../../../_mixins'
-import { createKey, getTitleAttribute, render } from '../../../_utils'
+import {
+  createKey,
+  getTitleAttribute,
+  render,
+  useOnResize,
+  Wrapper
+} from '../../../_utils'
 import Suffix from '../../suffix'
 import { internalSelectionLight } from '../styles'
 import type { InternalSelectionTheme } from '../styles'
 import type { RenderTag } from './interface'
 import style from './styles/index.cssr'
-import type {
-  RenderLabel,
-  RenderLabelImpl
-} from '../../select-menu/src/interface'
+import { getPadding } from 'seemly'
 
 export interface InternalSelectionInst {
-  isCompositing: boolean
+  isComposing: boolean
   focus: () => void
   focusInput: () => void
   blur: () => void
+  blurInput: () => void
   $el: HTMLElement
 }
 
@@ -67,12 +76,17 @@ export default defineComponent({
       type: Array as PropType<SelectBaseOption[] | null>,
       default: null
     },
+    labelField: { type: String, default: 'label' },
+    valueField: {
+      type: String,
+      default: 'value'
+    },
     multiple: Boolean,
     filterable: Boolean,
     clearable: Boolean,
     disabled: Boolean,
     size: {
-      type: String as PropType<'small' | 'medium' | 'large'>,
+      type: String as PropType<'tiny' | 'small' | 'medium' | 'large'>,
       default: 'medium'
     },
     loading: Boolean,
@@ -84,22 +98,30 @@ export default defineComponent({
     inputProps: Object as PropType<InputHTMLAttributes>,
     focused: Boolean,
     renderTag: Function as PropType<RenderTag>,
-    onKeyup: Function as PropType<(e: KeyboardEvent) => void>,
     onKeydown: Function as PropType<(e: KeyboardEvent) => void>,
     onClick: Function as PropType<(e: MouseEvent) => void>,
     onBlur: Function as PropType<(e: FocusEvent) => void>,
     onFocus: Function as PropType<(e: FocusEvent) => void>,
     onDeleteOption: Function as PropType<(option: SelectBaseOption) => void>,
     maxTagCount: [String, Number] as PropType<number | 'responsive'>,
+    ellipsisTagPopoverProps: Object as PropType<PopoverProps>,
     onClear: Function as PropType<(e: MouseEvent) => void>,
     onPatternInput: Function as PropType<(e: InputEvent) => void>,
     onPatternFocus: Function as PropType<(e: FocusEvent) => void>,
     onPatternBlur: Function as PropType<(e: FocusEvent) => void>,
     renderLabel: Function as PropType<RenderLabel>,
     status: String as PropType<FormValidationStatus>,
-    disableInlineTheme: Boolean
+    inlineThemeDisabled: Boolean,
+    ignoreComposition: { type: Boolean, default: true },
+    onResize: Function as PropType<() => void>
   },
   setup (props) {
+    const { mergedClsPrefixRef, mergedRtlRef } = useConfig(props)
+    const rtlEnabledRef = useRtl(
+      'InternalSelection',
+      mergedRtlRef,
+      mergedClsPrefixRef
+    )
     const patternInputMirrorRef = ref<HTMLElement | null>(null)
     const patternInputRef = ref<HTMLElement | null>(null)
     const selfRef = ref<HTMLElement | null>(null)
@@ -136,13 +158,17 @@ export default defineComponent({
           })
           : props.renderLabel
             ? props.renderLabel(props.selectedOption as never, true)
-            : render(props.selectedOption.label, props.selectedOption, true)
+            : render(
+              props.selectedOption[props.labelField],
+              props.selectedOption,
+              true
+            )
         : props.placeholder
     })
     const labelRef = computed(() => {
       const option = props.selectedOption
       if (!option) return undefined
-      return option.label
+      return option[props.labelField]
     })
     const selectedRef = computed(() => {
       if (props.multiple) {
@@ -160,7 +186,9 @@ export default defineComponent({
         if (patternInputEl) {
           patternInputEl.style.width = `${patternInputMirrorEl.offsetWidth}px`
           if (props.maxTagCount !== 'responsive') {
-            overflowRef.value?.sync()
+            overflowRef.value?.sync({
+              showAllItemsBeforeCalculate: false
+            })
           }
         }
       }
@@ -231,7 +259,7 @@ export default defineComponent({
       doDeleteOption(option)
     }
     function handlePatternKeyDown (e: KeyboardEvent): void {
-      if (e.code === 'Backspace' && !isCompositingRef.value) {
+      if (e.key === 'Backspace' && !isComposingRef.value) {
         if (!props.pattern.length) {
           const { selectedOptions } = props
           if (selectedOptions?.length) {
@@ -240,7 +268,7 @@ export default defineComponent({
         }
       }
     }
-    const isCompositingRef = ref(false)
+    const isComposingRef = ref(false)
     // the composition end is later than its input so we can cached the event
     // and return the input event
     let cachedInputEvent: InputEvent | null = null
@@ -252,18 +280,24 @@ export default defineComponent({
         patternInputMirrorEl.textContent = inputText
         syncMirrorWidth()
       }
-      if (!isCompositingRef.value) {
-        doPatternInput(e)
+      if (props.ignoreComposition) {
+        if (!isComposingRef.value) {
+          doPatternInput(e)
+        } else {
+          cachedInputEvent = e
+        }
       } else {
-        cachedInputEvent = e
+        doPatternInput(e)
       }
     }
     function handleCompositionStart (): void {
-      isCompositingRef.value = true
+      isComposingRef.value = true
     }
     function handleCompositionEnd (): void {
-      isCompositingRef.value = false
-      doPatternInput(cachedInputEvent!)
+      isComposingRef.value = false
+      if (props.ignoreComposition) {
+        doPatternInput(cachedInputEvent!)
+      }
       cachedInputEvent = null
     }
     function handlePatternInputFocus (e: FocusEvent): void {
@@ -328,10 +362,12 @@ export default defineComponent({
       if (enterTimerId !== null) window.clearTimeout(enterTimerId)
     }
     function handleMouseEnterCounter (): void {
-      if (props.disabled || props.active) return
+      if (props.active) return
       clearEnterTimer()
       enterTimerId = window.setTimeout(() => {
-        showTagsPopoverRef.value = true
+        if (selectedRef.value) {
+          showTagsPopoverRef.value = true
+        }
       }, 100)
     }
     function handleMouseLeaveCounter (): void {
@@ -343,15 +379,24 @@ export default defineComponent({
         showTagsPopoverRef.value = false
       }
     }
+    watch(selectedRef, (value) => {
+      if (!value) {
+        showTagsPopoverRef.value = false
+      }
+    })
     onMounted(() => {
       watchEffect(() => {
         const patternInputWrapperEl = patternInputWrapperRef.value
         if (!patternInputWrapperEl) return
-        patternInputWrapperEl.tabIndex =
-          props.disabled || patternInputFocusedRef.value ? -1 : 0
+        if (props.disabled) {
+          patternInputWrapperEl.removeAttribute('tabindex')
+        } else {
+          patternInputWrapperEl.tabIndex = patternInputFocusedRef.value ? -1 : 0
+        }
       })
     })
-    const { disableInlineTheme } = props
+    useOnResize(selfRef, props.onResize)
+    const { inlineThemeDisabled } = props
     const cssVarsRef = computed(() => {
       const { size } = props
       const {
@@ -407,6 +452,10 @@ export default defineComponent({
           [createKey('fontSize', size)]: fontSize
         }
       } = themeRef.value
+
+      const paddingSingleDiscrete = getPadding(paddingSingle)
+      const paddingMultipleDiscrete = getPadding(paddingMultiple)
+
       return {
         '--n-bezier': cubicBezierEaseInOut,
         '--n-border': border,
@@ -423,8 +472,14 @@ export default defineComponent({
         '--n-color-disabled': colorDisabled,
         '--n-font-size': fontSize,
         '--n-height': height,
-        '--n-padding-single': paddingSingle,
-        '--n-padding-multiple': paddingMultiple,
+        '--n-padding-single-top': paddingSingleDiscrete.top,
+        '--n-padding-multiple-top': paddingMultipleDiscrete.top,
+        '--n-padding-single-right': paddingSingleDiscrete.right,
+        '--n-padding-multiple-right': paddingMultipleDiscrete.right,
+        '--n-padding-single-left': paddingSingleDiscrete.left,
+        '--n-padding-multiple-left': paddingMultipleDiscrete.left,
+        '--n-padding-single-bottom': paddingSingleDiscrete.bottom,
+        '--n-padding-multiple-bottom': paddingMultipleDiscrete.bottom,
         '--n-placeholder-color': placeholderColor,
         '--n-placeholder-color-disabled': placeholderColorDisabled,
         '--n-text-color': textColor,
@@ -459,7 +514,7 @@ export default defineComponent({
         '--n-arrow-size': arrowSize
       }
     })
-    const themeClassHandle = disableInlineTheme
+    const themeClassHandle = inlineThemeDisabled
       ? useThemeClass(
         'internal-selection',
         computed(() => {
@@ -472,12 +527,14 @@ export default defineComponent({
     return {
       mergedTheme: themeRef,
       mergedClearable: mergedClearableRef,
+      mergedClsPrefix: mergedClsPrefixRef,
+      rtlEnabled: rtlEnabledRef,
       patternInputFocused: patternInputFocusedRef,
       filterablePlaceholder: filterablePlaceholderRef,
       label: labelRef,
       selected: selectedRef,
       showTagsPanel: showTagsPopoverRef,
-      isCompositing: isCompositingRef,
+      isComposing: isComposingRef,
       // dom ref
       counterRef,
       counterWrapperRef,
@@ -513,8 +570,9 @@ export default defineComponent({
       getCounter,
       getTail,
       renderLabel: props.renderLabel as RenderLabelImpl,
-      cssVars: disableInlineTheme ? undefined : cssVarsRef,
-      ...themeClassHandle
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle?.themeClass,
+      onRender: themeClassHandle?.onRender
     }
   },
   render () {
@@ -527,6 +585,7 @@ export default defineComponent({
       maxTagCount,
       bordered,
       clsPrefix,
+      ellipsisTagPopoverProps,
       onRender,
       renderTag,
       renderLabel
@@ -536,20 +595,27 @@ export default defineComponent({
     const maxTagCountNumeric = typeof maxTagCount === 'number'
     const useMaxTagCount = maxTagCountResponsive || maxTagCountNumeric
     const suffix = (
-      <Suffix
-        clsPrefix={clsPrefix}
-        loading={this.loading}
-        showArrow={this.showArrow}
-        showClear={this.mergedClearable && this.selected}
-        onClear={this.handleClear}
-      >
+      <Wrapper>
         {{
-          default: () => this.$slots.arrow?.()
+          default: () => (
+            <Suffix
+              clsPrefix={clsPrefix}
+              loading={this.loading}
+              showArrow={this.showArrow}
+              showClear={this.mergedClearable && this.selected}
+              onClear={this.handleClear}
+            >
+              {{
+                default: () => this.$slots.arrow?.()
+              }}
+            </Suffix>
+          )
         }}
-      </Suffix>
+      </Wrapper>
     )
     let body: JSX.Element
     if (multiple) {
+      const { labelField } = this
       const createTag = (option: SelectBaseOption): JSX.Element => (
         <div
           class={`${clsPrefix}-base-selection-tag-wrapper`}
@@ -558,31 +624,36 @@ export default defineComponent({
           {renderTag ? (
             renderTag({
               option,
-              handleClose: () => this.handleDeleteOption(option)
+              handleClose: () => {
+                this.handleDeleteOption(option)
+              }
             })
           ) : (
             <NTag
               size={size}
               closable={!option.disabled}
               disabled={disabled}
-              internalStopClickPropagation
-              onClose={() => this.handleDeleteOption(option)}
+              onClose={() => {
+                this.handleDeleteOption(option)
+              }}
+              internalCloseIsButtonTag={false}
+              internalCloseFocusable={false}
             >
               {{
                 default: () =>
                   renderLabel
                     ? renderLabel(option, true)
-                    : render(option.label, option, true)
+                    : render(option[labelField], option, true)
               }}
             </NTag>
           )}
         </div>
       )
-      const originalTags = (
-        maxTagCountNumeric
+      const createOriginalTagNodes = (): VNode[] =>
+        (maxTagCountNumeric
           ? this.selectedOptions!.slice(0, maxTagCount)
           : this.selectedOptions!
-      ).map(createTag)
+        ).map(createTag)
       const input = filterable ? (
         <div
           class={`${clsPrefix}-base-selection-input-tag`}
@@ -620,6 +691,7 @@ export default defineComponent({
               ref="counterWrapperRef"
             >
               <NTag
+                size={size}
                 ref="counterRef"
                 onMouseenter={this.handleMouseEnterCounter}
                 onMouseleave={this.handleMouseLeaveCounter}
@@ -638,6 +710,7 @@ export default defineComponent({
               key="__counter__"
             >
               <NTag
+                size={size}
                 ref="counterRef"
                 onMouseenter={this.handleMouseEnterCounter}
                 disabled={disabled}
@@ -664,7 +737,7 @@ export default defineComponent({
             }}
           >
             {{
-              default: () => originalTags,
+              default: createOriginalTagNodes,
               counter: renderCounter,
               tail: () => input
             }}
@@ -681,21 +754,21 @@ export default defineComponent({
             }}
           >
             {{
-              default: () => originalTags,
+              default: createOriginalTagNodes,
               counter: renderCounter
             }}
           </VOverflow>
         )
-      ) : maxTagCountNumeric ? (
-        originalTags.concat(counter as JSX.Element)
+      ) : maxTagCountNumeric && counter ? (
+        createOriginalTagNodes().concat(counter)
       ) : (
-        originalTags
+        createOriginalTagNodes()
       )
       const renderPopover = useMaxTagCount
         ? (): JSX.Element => (
             <div class={`${clsPrefix}-base-selection-popover`}>
               {maxTagCountResponsive
-                ? originalTags
+                ? createOriginalTagNodes()
                 : this.selectedOptions!.map(createTag)}
             </div>
           )
@@ -709,83 +782,76 @@ export default defineComponent({
             width: 'trigger',
             onUpdateShow: this.onPopoverUpdateShow,
             theme: this.mergedTheme.peers.Popover,
-            themeOverrides: this.mergedTheme.peerOverrides.Popover
+            themeOverrides: this.mergedTheme.peerOverrides.Popover,
+            ...ellipsisTagPopoverProps
           } as const)
         : null
       const showPlaceholder = this.selected
         ? false
         : this.active
-          ? !this.pattern && !this.isCompositing
+          ? !this.pattern && !this.isComposing
           : true
       const placeholder = showPlaceholder ? (
         <div
           class={`${clsPrefix}-base-selection-placeholder ${clsPrefix}-base-selection-overlay`}
         >
-          {this.placeholder}
+          <div class={`${clsPrefix}-base-selection-placeholder__inner`}>
+            {this.placeholder}
+          </div>
         </div>
       ) : null
-      if (filterable) {
-        const popoverTrigger = (
-          <div
-            ref="patternInputWrapperRef"
-            class={`${clsPrefix}-base-selection-tags`}
-          >
-            {tags}
-            {maxTagCountResponsive ? null : input}
-            {suffix}
-          </div>
-        )
-        body = (
-          <>
-            {useMaxTagCount ? (
-              <NPopover {...popoverProps}>
-                {{
-                  trigger: () => popoverTrigger,
-                  default: renderPopover
-                }}
-              </NPopover>
-            ) : (
-              popoverTrigger
-            )}
-            {placeholder}
-          </>
-        )
-      } else {
-        const popoverTrigger = (
-          <div
-            ref="multipleElRef"
-            class={`${clsPrefix}-base-selection-tags`}
-            tabindex={disabled ? undefined : 0}
-          >
-            {tags}
-            {suffix}
-          </div>
-        )
-        body = (
-          <>
-            {useMaxTagCount ? (
-              <NPopover {...popoverProps}>
-                {{
-                  trigger: () => popoverTrigger,
-                  default: renderPopover
-                }}
-              </NPopover>
-            ) : (
-              popoverTrigger
-            )}
-            {placeholder}
-          </>
-        )
-      }
+      const popoverTrigger = filterable ? (
+        <div
+          ref="patternInputWrapperRef"
+          class={`${clsPrefix}-base-selection-tags`}
+        >
+          {tags}
+          {maxTagCountResponsive ? null : input}
+          {suffix}
+        </div>
+      ) : (
+        <div
+          ref="multipleElRef"
+          class={`${clsPrefix}-base-selection-tags`}
+          tabindex={disabled ? undefined : 0}
+        >
+          {tags}
+          {suffix}
+        </div>
+      )
+      body = (
+        <>
+          {useMaxTagCount ? (
+            <NPopover
+              {...popoverProps}
+              scrollable
+              style="max-height: calc(var(--v-target-height) * 6.6);"
+            >
+              {{
+                trigger: () => popoverTrigger,
+                default: renderPopover
+              }}
+            </NPopover>
+          ) : (
+            popoverTrigger
+          )}
+          {placeholder}
+        </>
+      )
     } else {
       if (filterable) {
-        const hasInput = this.pattern || this.isCompositing
+        const hasInput = this.pattern || this.isComposing
         const showPlaceholder = this.active ? !hasInput : !this.selected
         const showSelectedLabel = this.active ? false : this.selected
         body = (
           <div
             ref="patternInputWrapperRef"
             class={`${clsPrefix}-base-selection-label`}
+            title={
+              this.patternInputFocused
+                ? undefined
+                : getTitleAttribute(this.label)
+            }
           >
             <input
               {...this.inputProps}
@@ -849,11 +915,11 @@ export default defineComponent({
                 <div class={`${clsPrefix}-base-selection-input__content`}>
                   {renderTag
                     ? renderTag({
-                      option: this.selectedOption as SelectBaseOption,
+                      option: this.selectedOption!,
                       handleClose: () => {}
                     })
                     : renderLabel
-                      ? renderLabel(this.selectedOption as SelectBaseOption, true)
+                      ? renderLabel(this.selectedOption!, true)
                       : render(this.label, this.selectedOption, true)}
                 </div>
               </div>
@@ -862,7 +928,9 @@ export default defineComponent({
                 class={`${clsPrefix}-base-selection-placeholder ${clsPrefix}-base-selection-overlay`}
                 key="placeholder"
               >
-                {this.placeholder}
+                <div class={`${clsPrefix}-base-selection-placeholder__inner`}>
+                  {this.placeholder}
+                </div>
               </div>
             )}
             {suffix}
@@ -875,6 +943,7 @@ export default defineComponent({
         ref="selfRef"
         class={[
           `${clsPrefix}-base-selection`,
+          this.rtlEnabled && `${clsPrefix}-base-selection--rtl`,
           this.themeClass,
           status && `${clsPrefix}-base-selection--${status}-status`,
           {
@@ -893,7 +962,6 @@ export default defineComponent({
         onClick={this.onClick}
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
-        onKeyup={this.onKeyup}
         onKeydown={this.onKeydown}
         onFocusin={this.handleFocusin}
         onFocusout={this.handleFocusout}

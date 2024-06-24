@@ -1,4 +1,4 @@
-import { Ref, CSSProperties } from 'vue'
+import { type Ref, type CSSProperties } from 'vue'
 import { createInjectionKey } from '../../_utils'
 
 export type TabsType = 'line' | 'card' | 'bar' | 'segment'
@@ -24,11 +24,15 @@ export interface TabsInjection {
   typeRef: Ref<TabsType>
   closableRef: Ref<boolean>
   tabStyleRef: Ref<string | CSSProperties | undefined>
+  tabClassRef: Ref<string | undefined>
+  addTabClassRef: Ref<string | undefined>
+  addTabStyleRef: Ref<string | CSSProperties | undefined>
   paneClassRef: Ref<string | undefined>
   paneStyleRef: Ref<string | CSSProperties | undefined>
   tabChangeIdRef: { id: number }
   onBeforeLeaveRef: Ref<OnBeforeLeave | undefined>
-  handleTabClick: (panelName: string | number) => void
+  triggerRef: Ref<'click' | 'hover'>
+  activateTab: (panelName: string | number) => void
   handleClose: (panelName: string | number) => void
   handleAdd: () => void
 }

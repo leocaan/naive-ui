@@ -1,16 +1,17 @@
-import { Ref, Slots } from 'vue'
-import { VirtualListInst } from 'vueuc'
-import { NLocale, NDateLocale } from '../../locales'
+import type { Ref, Slots, UnwrapNestedRefs } from 'vue'
+import { type VirtualListInst } from 'vueuc'
+import type { NLocale, NDateLocale } from '../../locales'
 import type { ScrollbarInst } from '../../_internal'
-import {
+import type {
   IsHourDisabled,
   IsMinuteDisabled,
   IsSecondDisabled
 } from '../../time-picker/src/interface'
-import { MergedTheme } from '../../_mixins'
+import type { TimePickerProps } from '../../time-picker/src/TimePicker'
+import type { MergedTheme } from '../../_mixins'
 import { createInjectionKey } from '../../_utils'
-import { DatePickerTheme } from '../styles/light'
-import {
+import type { DatePickerTheme } from '../styles/light'
+import type {
   uniCalendarValidation,
   dualCalendarValidation
 } from './validation-utils'
@@ -23,28 +24,37 @@ export type FormattedValue = string | [string, string]
 
 export type Shortcuts =
   | Record<string, number | (() => number)>
-  | Record<string, [number, number] | (() => [number, number])>
+  | Record<
+  string,
+  | [number, number]
+  | readonly [number, number]
+  | (() => [number, number] | readonly [number, number])
+  >
 
 export type OnUpdateValue = (
   value: number &
-    (number | null) &
+  (number | null) &
   [number, number] &
-    ([number, number] | null),
+  ([number, number] | null),
   formattedValue: string &
-    (string | null) &
+  (string | null) &
   [string, string] &
-    ([string, string] | null)
+  ([string, string] | null)
 ) => void
+
+export type OnConfirm = OnUpdateValue
+
+export type OnConfirmImpl = OnUpdateValueImpl
 
 export type OnUpdateFormattedValue = (
   value: string &
-    (string | null) &
+  (string | null) &
   [string, string] &
-    ([string, string] | null),
+  ([string, string] | null),
   timestampValue: number &
-    (number | null) &
+  (number | null) &
   [number, number] &
-    ([number, number] | null)
+  ([number, number] | null)
 ) => void
 
 export type OnUpdateFormattedValueImpl = (
@@ -59,9 +69,9 @@ export type OnUpdateValueImpl = (
 
 export type OnPanelUpdateValue = (
   value: number &
-    (number | null) &
+  (number | null) &
   [number, number] &
-    ([number, number] | null),
+  ([number, number] | null),
   doUpdate: boolean
 ) => void
 
@@ -72,11 +82,27 @@ export type OnPanelUpdateValueImpl = (
 
 export type OnClose = (disableUpdateOnClose: boolean) => void
 
-export interface PanelRef {
+export interface RangePanelChildComponentRefs {
+  startYearScrollbarRef: Ref<ScrollbarInst | null>
+  endYearScrollbarRef: Ref<ScrollbarInst | null>
+  startMonthScrollbarRef: Ref<ScrollbarInst | null>
+  endMonthScrollbarRef: Ref<ScrollbarInst | null>
+  startYearVlRef: Ref<VirtualListInst | null>
+  endYearVlRef: Ref<VirtualListInst | null>
+}
+
+export interface PanelChildComponentRefs {
+  monthScrollbarRef: Ref<ScrollbarInst | null> // Only exists when type is month
+  yearScrollbarRef: Ref<ScrollbarInst | null>
+  // year, virtual scroll
+  yearVlRef: Ref<VirtualListInst | null>
+}
+
+export interface PanelRef
+  extends Partial<
+  UnwrapNestedRefs<PanelChildComponentRefs & RangePanelChildComponentRefs>
+  > {
   $el: HTMLElement
-  // Only exists when type is month
-  monthScrollRef?: ScrollbarInst | null
-  yearScrollRef?: VirtualListInst | null
 }
 
 // 0 is Monday
@@ -86,6 +112,9 @@ export type DatePickerInjection = {
   mergedClsPrefixRef: Ref<string>
   mergedThemeRef: Ref<MergedTheme<DatePickerTheme>>
   timePickerSizeRef: Ref<'small' | 'medium' | 'large'>
+  timePickerPropsRef: Ref<
+  undefined | TimePickerProps | [TimePickerProps, TimePickerProps]
+  >
   localeRef: Ref<NLocale['DatePicker']>
   dateLocaleRef: Ref<NDateLocale>
   isDateDisabledRef: Ref<IsDateDisabled | undefined>
@@ -93,6 +122,9 @@ export type DatePickerInjection = {
   closeOnSelectRef: Ref<boolean>
   updateValueOnCloseRef: Ref<boolean>
   firstDayOfWeekRef: Ref<FirstDayOfWeek | undefined>
+  monthFormatRef: Ref<string>
+  yearFormatRef: Ref<string>
+  quarterFormatRef: Ref<string>
   datePickerSlots: Slots
 } & ReturnType<typeof uniCalendarValidation> &
 ReturnType<typeof dualCalendarValidation>
@@ -101,9 +133,38 @@ export const datePickerInjectionKey =
   createInjectionKey<DatePickerInjection>('n-date-picker')
 
 export type IsDateDisabled = IsSingleDateDisabled | IsRangeDateDisabled
-export type IsSingleDateDisabled = (date: number) => boolean
+
+export type IsSingleDateDisabledDetail =
+  | {
+    type: 'date'
+    year: number
+    month: number
+    date: number
+  }
+  | {
+    type: 'month'
+    year: number
+    month: number
+  }
+  | {
+    type: 'year'
+    year: number
+  }
+  | {
+    type: 'quarter'
+    year: number
+    quarter: number
+  }
+  | {
+    type: 'input'
+  }
+
+export type IsSingleDateDisabled = (
+  timestamp: number,
+  detail: IsSingleDateDisabledDetail
+) => boolean
 export type IsRangeDateDisabled = (
-  date: number,
+  timestamp: number,
   position: 'start' | 'end',
   value: [number, number] | null
 ) => boolean

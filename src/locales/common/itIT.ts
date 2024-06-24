@@ -5,7 +5,8 @@ const itIT: NLocale = {
   global: {
     undo: 'Annulla',
     redo: 'Ripeti',
-    confirm: 'Conferma'
+    confirm: 'Conferma',
+    clear: 'Cancella'
   },
   Popconfirm: {
     positiveText: 'Conferma',
@@ -30,6 +31,7 @@ const itIT: NLocale = {
     dateFormat: 'yyyy-MM-dd',
     dateTimeFormat: 'yyyy-MM-dd HH:mm:ss',
     quarterFormat: 'yyyy-qqq',
+    weekFormat: 'yyyy-w',
     clear: 'Cancella',
     now: 'Adesso',
     confirm: 'Conferma',
@@ -40,10 +42,13 @@ const itIT: NLocale = {
     monthPlaceholder: 'Seleziona mese',
     yearPlaceholder: 'Seleziona anno',
     quarterPlaceholder: 'Seleziona trimestre',
+    weekPlaceholder: 'Select Week',
     startDatePlaceholder: 'Data inizio',
     endDatePlaceholder: 'Data fine',
     startDatetimePlaceholder: 'Data e ora di inizio',
     endDatetimePlaceholder: 'Data e ora di fine',
+    startMonthPlaceholder: 'Mese di inizio',
+    endMonthPlaceholder: 'Mese di fine',
     monthBeforeYear: true,
     firstDayOfWeek: 0 as 0 | 1 | 2 | 3 | 4 | 5 | 6,
     today: 'Oggi'
@@ -54,9 +59,22 @@ const itIT: NLocale = {
     confirm: 'Conferma',
     clear: 'Cancella'
   },
-  Transfer: {
+  LegacyTransfer: {
     sourceTitle: 'Fonte',
     targetTitle: 'Destinazione'
+  },
+  Transfer: {
+    selectAll: 'Seleziona tutto',
+    unselectAll: 'Deseleziona tutto',
+    clearAll: 'Pulisci',
+    total: (num: number): string => {
+      if (num !== 1) return `${num} elementi in totale`
+      return '1 elemento in totale'
+    },
+    selected: (num: number): string => {
+      if (num !== 1) return `${num} elementi selezionati`
+      return '1 elemento selezionato'
+    }
   },
   Empty: {
     description: 'Nessun Dato'
@@ -68,7 +86,8 @@ const itIT: NLocale = {
     placeholder: 'Seleziona ora',
     positiveText: 'OK',
     negativeText: 'Annulla',
-    now: 'Ora'
+    now: 'Ora',
+    clear: 'Cancella'
   },
   Pagination: {
     goto: 'Vai a',
@@ -106,7 +125,9 @@ const itIT: NLocale = {
     tipClockwise: 'Ruota a destra',
     tipZoomOut: 'Ingrandisci',
     tipZoomIn: 'Riduci',
-    tipClose: 'Chiudi (Esc)'
+    tipDownload: 'Download',
+    tipClose: 'Chiudi (Esc)',
+    tipOriginalSize: 'Torna alla dimensione originale'
   }
 }
 

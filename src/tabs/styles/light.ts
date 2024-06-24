@@ -1,14 +1,16 @@
 import sizeVariables from './_common'
 import { commonLight } from '../../_styles/common'
 import type { ThemeCommonVars } from '../../_styles/common'
-import { Theme } from '../../_mixins'
+import { type Theme } from '../../_mixins'
 
 export const self = (vars: ThemeCommonVars) => {
   const {
     textColor2,
     primaryColor,
     textColorDisabled,
-    closeColor,
+    closeIconColor,
+    closeIconColorHover,
+    closeIconColorPressed,
     closeColorHover,
     closeColorPressed,
     tabColor,
@@ -41,9 +43,12 @@ export const self = (vars: ThemeCommonVars) => {
     tabTextColorActiveCard: primaryColor,
     tabTextColorDisabledCard: textColorDisabled,
     barColor: primaryColor,
-    closeColor,
+    closeIconColor,
+    closeIconColorHover,
+    closeIconColorPressed,
     closeColorHover,
     closeColorPressed,
+    closeBorderRadius: borderRadius,
     tabColor,
     tabColorSegment: baseColor,
     tabBorderColor: dividerColor,

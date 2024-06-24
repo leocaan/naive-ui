@@ -5,14 +5,15 @@ Unlike the real world, these color values are discrete.
 ## Demos
 
 ```demo
-basic
-alpha
-size
-disabled
-modes
-form
-swatches
-native
+basic.vue
+alpha.vue
+size.vue
+disabled.vue
+modes.vue
+actions.vue
+form.vue
+swatches.vue
+native.vue
 ```
 
 ## API
@@ -32,12 +33,13 @@ native
 | size | `'small' \| 'medium' \| 'large'` | `'medium'` | Size of the picker. |  |
 | disabled | `boolean` | `false` | Whether to disable the color picker. | 2.24.5 |
 | swatches | `string[]` | `undefined` | Value of the swatches. |  |
-| to | `string \| HTMLElement` | `'body'` | Where to attach the panel to. |  |
+| to | `string \| HTMLElement \| false` | `'body'` | Where to attach the panel to. `false` will keep it not detached. |  |
 | value | `string \| null` | `undefined` | Value of the picker. |  |
 | on-complete | `(value: string) => void` | `undefined` | Callback once the value is changed completely (not called during mousemove). |  |
+| on-confirm | `(value: string) => void` | `undefined` | Callback once the confirm button is clicked. | 2.29.0 |
 | on-update:show | `(value: boolean) => void` | `undefined` | Callback once panel the show status is changed. |  |
 | on-update:value | `(value: string) => void` | `undefined` | Callback once the value is changed. |  |
-| actions | `Array<'confirm'> \| null` | `null` | The types of buttons to be shown in the panel. |  |
+| actions | `Array<'confirm' \| 'clear'> \| null` | `null` | The types of buttons to be shown in the panel. |  |
 
 ### ColorPicker Slots
 

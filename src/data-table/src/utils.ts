@@ -1,4 +1,4 @@
-import { CSSProperties } from 'vue'
+import type { CSSProperties } from 'vue'
 import { depx } from 'seemly'
 import { formatLength } from '../../_utils'
 import type {
@@ -10,15 +10,20 @@ import type {
   CreateRowClassName,
   TableSelectionColumn,
   TableColumn,
-  TableExpandColumn
+  TableExpandColumn,
+  RowData
 } from './interface'
 
-export const selectionColWidth = 40
-export const expandColWidth = 40
+export const SELECTION_COL_WIDTH = 40
+export const EXPAND_COL_WIDTH = 40
 
 export function getNumberColWidth (col: TableColumn): number | undefined {
-  if (col.type === 'selection') return selectionColWidth
-  if (col.type === 'expand') return expandColWidth
+  if (col.type === 'selection') {
+    return col.width === undefined ? SELECTION_COL_WIDTH : depx(col.width)
+  }
+  if (col.type === 'expand') {
+    return col.width === undefined ? EXPAND_COL_WIDTH : depx(col.width)
+  }
   if ('children' in col) return undefined
   if (typeof col.width === 'string') {
     return depx(col.width)
@@ -27,9 +32,15 @@ export function getNumberColWidth (col: TableColumn): number | undefined {
 }
 
 export function getStringColWidth (col: TableColumn): string | undefined {
-  if (col.type === 'selection') return formatLength(selectionColWidth)
-  if (col.type === 'expand') return formatLength(expandColWidth)
-  if ('children' in col) return undefined
+  if (col.type === 'selection') {
+    return formatLength(col.width ?? SELECTION_COL_WIDTH)
+  }
+  if (col.type === 'expand') {
+    return formatLength(col.width ?? EXPAND_COL_WIDTH)
+  }
+  if ('children' in col) {
+    return undefined
+  }
   return formatLength(col.width)
 }
 
@@ -53,13 +64,38 @@ export function getFlagOfOrder (order: SortOrder): SortOrderFlag {
   return 0
 }
 
+// priority: min-width > max-width > width
+export function clampValueFollowCSSRules (
+  value: number,
+  min?: number | string,
+  max?: number | string
+): number {
+  if (max !== undefined) {
+    value = Math.min(value, typeof max === 'number' ? max : parseFloat(max))
+  }
+  if (min !== undefined) {
+    value = Math.max(value, typeof min === 'number' ? min : parseFloat(min))
+  }
+  return value
+}
+
 export function createCustomWidthStyle (
-  column: TableBaseColumn | TableSelectionColumn | TableExpandColumn
+  column: TableBaseColumn | TableSelectionColumn | TableExpandColumn,
+  resizedWidth?: string
 ): CSSProperties {
+  if (resizedWidth !== undefined) {
+    return {
+      width: resizedWidth,
+      minWidth: resizedWidth,
+      maxWidth: resizedWidth
+    }
+  }
   const width = getStringColWidth(column)
+  const { minWidth, maxWidth } = column
   return {
     width,
-    minWidth: width
+    minWidth: formatLength(minWidth) || width,
+    maxWidth: formatLength(maxWidth)
   }
 }
 
@@ -86,6 +122,11 @@ export function shouldUseArrayInSingleMode (column: TableBaseColumn): boolean {
 export function isColumnSortable (column: TableColumn): boolean {
   if ('children' in column) return false
   return !!column.sorter
+}
+
+export function isColumnResizable (column: TableColumn): boolean {
+  if ('children' in column && !!column.children.length) return false
+  return !!column.resizable
 }
 
 export function isColumnFilterable (column: TableColumn): boolean {
@@ -130,4 +171,28 @@ export function isColumnSorting (
         state.columnKey === (column as TableBaseColumn).key && state.order
     ) !== undefined
   )
+}
+
+function formatCsvCell (value: unknown): string {
+  if (typeof value === 'string') {
+    return value.replace(/,/g, '\\,')
+  } else if (value === null || value === undefined) {
+    return ''
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions
+    return `${value}`.replace(/,/g, '\\,')
+  }
+}
+
+export function generateCsv (columns: TableColumn[], data: RowData[]): string {
+  const exportableColumns = columns.filter(
+    (column) => column.type !== 'expand' && column.type !== 'selection'
+  )
+  const header = exportableColumns.map((col: any) => col.title).join(',')
+  const rows = data.map((row) => {
+    return exportableColumns
+      .map((col: any) => formatCsvCell(row[col.key]))
+      .join(',')
+  })
+  return [header, ...rows].join('\n')
 }

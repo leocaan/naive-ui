@@ -4,11 +4,17 @@
 
 > Please note that naive-ui only supports Vue3. If you are using Vue2, you may look at other libraries.
 
+## npm
+
 Use npm to install.
 
 ```bash
 npm i -D naive-ui
 ```
+
+## UMD
+
+Please refer to [Using UMD](umd).
 
 ## Fonts
 
@@ -29,7 +35,7 @@ naive-ui recommends using [xicons](https://www.xicons.org) as icon library.
   <template #footer>
     <n-button
       tag="a"
-      href="https://naive-ui.oss-accelerate.aliyuncs.com/NaiveUI-Design-Library%28Square-Corner%29.sketch"
+      href="https://naive-ui.oss-accelerate.aliyuncs.com/NaiveUI-Design-Library-en-US.sketch"
       text
       target="_blank"
       icon-placement="right"

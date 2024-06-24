@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { NAvatar, NAvatarGroup } from '../index'
+import { NAvatar } from '../index'
 import { h, nextTick } from 'vue'
 import { CashOutline as CashIcon } from '@vicons/ionicons5'
 import { NIcon } from '../../icon'
@@ -53,6 +53,7 @@ describe('n-avatar', () => {
     const wrapper = mount(NAvatar, { props: { size: 'medium' } })
     expect(wrapper.attributes('style')).toContain('--n-merged-size')
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('size is number', () => {
@@ -61,18 +62,21 @@ describe('n-avatar', () => {
       '--n-merged-size: var(--n-avatar-size-override, 50px);'
     )
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('round avatar', () => {
     const wrapper = mount(NAvatar, { props: { round: true } })
     expect(wrapper.attributes('style')).toContain('--n-border-radius: 50%;')
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('bordered avatar', () => {
     const wrapper = mount(NAvatar, { props: { bordered: true } })
     expect(wrapper.attributes('style')).toContain('--n-border: 2px solid #fff;')
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('custom style', () => {
@@ -81,6 +85,7 @@ describe('n-avatar', () => {
     })
     expect(wrapper.attributes('style')).toContain('background-color: red;')
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('image avatar', () => {
@@ -91,6 +96,7 @@ describe('n-avatar', () => {
     })
     expect(wrapper.find('img').exists()).toBe(true)
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('icon avatar', () => {
@@ -104,6 +110,7 @@ describe('n-avatar', () => {
     })
     expect(wrapper.find('i').classes()).toContain('n-icon')
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('avatar adjust text', async () => {
@@ -124,6 +131,7 @@ describe('n-avatar', () => {
     await nextTick()
     expect(textNode.exists()).toBe(true)
     expect(wrapper.html()).toMatchSnapshot()
+    wrapper.unmount()
   })
 
   it('image avatar error handle when load failed', async () => {
@@ -136,6 +144,7 @@ describe('n-avatar', () => {
     })
     await wrapper.find('img').trigger('error')
     expect(onError).toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('should work with `objectFit` prop', () => {
@@ -148,44 +157,6 @@ describe('n-avatar', () => {
     expect(wrapper.find('img').attributes('style')).toContain(
       'object-fit: contain;'
     )
-  })
-
-  it('should work with `options` prop in `avatar group`', async () => {
-    const options = [
-      {
-        name: 'test1',
-        src: 'https://www.naiveui.com/assets/naivelogo.93278402.svg'
-      },
-      {
-        name: 'test2',
-        src: 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg'
-      },
-      {
-        name: 'test3',
-        src: 'https://gw.alipayobjects.com/zos/antfincdn/aPkFc8Sj7n/method-draw-image.svg'
-      },
-      {
-        name: 'test4',
-        src: 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg'
-      }
-    ]
-    const wrapper = mount(NAvatarGroup, {
-      props: {
-        options: options,
-        max: 2
-      }
-    })
-    expect(wrapper.findAll('.n-avatar').length).toBe(2)
-
-    await wrapper.setProps({ vertical: true })
-    expect(wrapper.find('[role="group"]').classes()).toContain(
-      'n-avatar-group--vertical'
-    )
-
-    await wrapper.setProps({ max: 4 })
-    expect(wrapper.find('.n-avatar__text').exists()).toBe(false)
-
-    await wrapper.setProps({ options: [] })
-    expect(wrapper.findAll('.n-avatar').length).toBe(0)
+    wrapper.unmount()
   })
 })

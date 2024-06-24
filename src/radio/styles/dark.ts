@@ -21,10 +21,12 @@ const radioDark: RadioTheme = {
       fontSizeLarge,
       heightSmall,
       heightMedium,
-      heightLarge
+      heightLarge,
+      lineHeight
     } = vars
     return {
       ...commonVariables,
+      labelLineHeight: lineHeight,
       buttonHeightSmall: heightSmall,
       buttonHeightMedium: heightMedium,
       buttonHeightLarge: heightLarge,
@@ -41,8 +43,9 @@ const radioDark: RadioTheme = {
       boxShadowDisabled: `inset 0 0 0 1px ${borderColor}`,
       color: '#0000',
       colorDisabled: inputColorDisabled,
+      colorActive: '#0000',
       textColor: textColor2,
-      textColorDisabled: textColorDisabled,
+      textColorDisabled,
       dotColorActive: primaryColor,
       dotColorDisabled: borderColor,
       buttonBorderColor: borderColor,
@@ -53,7 +56,7 @@ const radioDark: RadioTheme = {
       buttonTextColor: textColor2,
       buttonTextColorActive: baseColor,
       buttonTextColorHover: primaryColor,
-      opacityDisabled: opacityDisabled,
+      opacityDisabled,
       buttonBoxShadowFocus: `inset 0 0 0 1px ${primaryColor}, 0 0 0 2px ${changeColor(
         primaryColor,
         { alpha: 0.3 }

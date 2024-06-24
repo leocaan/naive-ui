@@ -1,11 +1,11 @@
 import { c, cB, cE, cM, cNotM } from '../../../_utils/cssr'
-import fadeInScaleUpTransition from '../../../_styles/transitions/fade-in-scale-up.cssr'
+import { fadeInScaleUpTransition } from '../../../_styles/transitions/fade-in-scale-up.cssr'
 
 // vars:
 // --n-bezier
 
-// --n-icon-color
-// --n-icon-color-disabled
+// --n-icon-color-override
+// --n-icon-color-disabled-override
 
 // --n-panel-border-radius
 // --n-panel-color
@@ -64,26 +64,37 @@ export default c([
     z-index: auto;
   `, [
     cB('date-picker-icon', `
-      color: var(--n-icon-color);
+      color: var(--n-icon-color-override);
+      transition: color .3s var(--n-bezier);
+    `),
+    cB('icon', `
+      color: var(--n-icon-color-override);
       transition: color .3s var(--n-bezier);
     `),
     cM('disabled', [
       cB('date-picker-icon', `
-        color: var(--n-icon-color-disabled);
+        color: var(--n-icon-color-disabled-override);
+      `),
+      cB('icon', `
+        color: var(--n-icon-color-disabled-override);
       `)
     ])
   ]),
   cB('date-panel', `
+    width: fit-content;
     outline: none;
     margin: 4px 0;
     display: grid;
     grid-template-columns: 0fr;
     border-radius: var(--n-panel-border-radius);
     background-color: var(--n-panel-color);
-    box-shadow: var(--n-panel-box-shadow);
     color: var(--n-panel-text-color);
+    user-select: none;
   `, [
     fadeInScaleUpTransition(),
+    cM('shadow', `
+      box-shadow: var(--n-panel-box-shadow);
+    `),
     cB('date-panel-calendar', {
       padding: 'var(--n-calendar-left-padding)',
       display: 'grid',
@@ -103,6 +114,7 @@ export default c([
         min-width: var(--n-scroll-item-width);
         height: calc(var(--n-scroll-item-height) * 6);
         user-select: none;
+        -webkit-user-select: none;
       `, [
         c('&:first-child', `
           min-width: calc(var(--n-scroll-item-width) + 4px);
@@ -154,12 +166,25 @@ export default c([
           ])
         ]),
         cM('disabled', `
-          background-color: var(--n-item-color-disabled);
+          color: var(--n-item-text-color-disabled);
           cursor: not-allowed;
-        `)
+        `, [
+          cM('selected', [
+            c('&::before', `
+              background-color: var(--n-item-color-disabled);
+            `)
+          ])
+        ])
       ])
     ]),
     cM('date', {
+      gridTemplateAreas: `
+        "left-calendar"
+        "footer"
+        "action"
+      `
+    }),
+    cM('week', {
       gridTemplateAreas: `
         "left-calendar"
         "footer"
@@ -245,6 +270,7 @@ export default c([
       `),
       cE('month-year', `
         user-select: none;
+        -webkit-user-select: none;
         flex-grow: 1;
         position: relative;
       `, [
@@ -280,6 +306,7 @@ export default c([
     `, [
       cE('day', `
         user-select: none;
+        -webkit-user-select: none;
         line-height: 15px;
         width: var(--n-item-size);
         text-align: center;
@@ -298,6 +325,7 @@ export default c([
     `, [
       cB('date-panel-date', `
         user-select: none;
+        -webkit-user-select: none;
         position: relative;
         width: var(--n-item-size);
         height: var(--n-item-size);
@@ -311,13 +339,13 @@ export default c([
           background-color .2s var(--n-bezier),
           color .2s var(--n-bezier);
       `, [
-        cNotM('disabled', [
-          cNotM('selected', [
-            c('&:hover', {
-              backgroundColor: 'var(--n-item-color-hover)'
-            })
-          ])
-        ]),
+        cE('trigger', `
+          position: absolute;
+          left: calc(var(--n-item-size) / 2 - var(--n-item-cell-width) / 2);
+          top: calc(var(--n-item-size) / 2 - var(--n-item-cell-height) / 2);
+          width:  var(--n-item-cell-width);
+          height:  var(--n-item-cell-height);
+        `),
         cM('current', [
           cE('sup', `
             position: absolute;
@@ -411,6 +439,63 @@ export default c([
               backgroundColor: 'var(--n-item-color-disabled)'
             })
           ])
+        ]),
+        cM('week-hovered', [
+          c('&::before', `
+            background-color: var(--n-item-color-included);
+          `),
+          c('&:nth-child(7n + 1)::before', `
+            border-top-left-radius: var(--n-item-border-radius);
+            border-bottom-left-radius: var(--n-item-border-radius);
+          `),
+          c('&:nth-child(7n + 7)::before', `
+            border-top-right-radius: var(--n-item-border-radius);
+            border-bottom-right-radius: var(--n-item-border-radius);
+          `)
+        ]),
+        cM('week-selected', `
+          color: var(--n-item-text-color-active)
+        `, [
+          c('&::before', `
+            background-color: var(--n-item-color-active);
+          `),
+          c('&:nth-child(7n + 1)::before', `
+            border-top-left-radius: var(--n-item-border-radius);
+            border-bottom-left-radius: var(--n-item-border-radius);
+          `),
+          c('&:nth-child(7n + 7)::before', `
+            border-top-right-radius: var(--n-item-border-radius);
+            border-bottom-right-radius: var(--n-item-border-radius);
+          `)
+        ])
+      ])
+    ]),
+    cNotM('week', [
+      cB('date-panel-dates', [
+        cB('date-panel-date', [
+          cNotM('disabled', [
+            cNotM('selected', [
+              c('&:hover', `
+                background-color: var(--n-item-color-hover);
+              `)
+            ])
+          ])
+        ])
+      ])
+    ]),
+    cM('week', [
+      cB('date-panel-dates', [
+        cB('date-panel-date', [
+          c('&::before', `
+            content: "";
+            z-index: -2;
+            position: absolute;
+            left: calc((var(--n-item-size) - var(--n-item-cell-width)) / 2);
+            right: calc((var(--n-item-size) - var(--n-item-cell-width)) / 2);
+            top: 0;
+            bottom: 0;
+            transition: background-color .3s var(--n-bezier);
+          `)
         ])
       ])
     ]),
@@ -420,10 +505,10 @@ export default c([
       width: 1px;
       background-color: var(--n-calendar-divider-color);
     `),
-    cB('date-panel-footer', {
-      borderTop: '1px solid var(--n-panel-action-divider-color)',
-      padding: 'var(--n-panel-extra-footer-padding)'
-    }),
+    cB('date-panel-footer', `
+      border-top: 1px solid var(--n-panel-action-divider-color);
+      padding: var(--n-panel-extra-footer-padding);
+    `),
     cB('date-panel-actions', `
       flex: 1;
       padding: var(--n-panel-action-padding);

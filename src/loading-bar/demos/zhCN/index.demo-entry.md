@@ -3,7 +3,7 @@
 焦虑的安慰剂，疗效尚可。
 
 <n-space vertical size="large">
-<n-alert title="使用前提" type="warning">
+<n-alert title="使用前提" type="warning" :bordered="false">
   如果你想使用加载条，你需要把调用其方法的组件放在 <n-text code>n-loading-bar-provider</n-text> 内部并且注入 <n-text code>loadingBar</n-text>。
 </n-alert>
 例如：
@@ -37,18 +37,22 @@ export default defineComponent({
 ## 演示
 
 ```demo
-basic
+basic.vue
+container.vue
 ```
 
 ## API
 
 ### LoadingBarProvider Props
 
-| 名称 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| loading-bar-style | `{ loading?: string \| object, error?: string \| object }` | `undefined` | 加载条样式 |
+| 名称 | 类型 | 默认值 | 说明 | 版本 |
+| --- | --- | --- | --- | --- |
+| container-class | `string` | `undefined` | 加载条容器的类名 | 2.33.4 |
+| container-style | `string \| object` | `undefined` | 加载条容器的样式 | 2.33.4 |
+| loading-bar-style | `{ loading?: string \| object, error?: string \| object }` | `undefined` | 加载条样式 |  |
+| to | `string \| HTMLElement \| false` | `undefined` | 加载条的挂载位置 | 2.33.4 |
 
-### `loadingBar` Injection Methods
+### loadingBar Injection Methods
 
 | 名称   | 类型         | 说明                     |
 | ------ | ------------ | ------------------------ |

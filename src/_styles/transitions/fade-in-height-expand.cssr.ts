@@ -1,4 +1,4 @@
-import { CNode } from 'css-render'
+import type { CNode } from 'css-render'
 import { c } from '../../_utils/cssr'
 import commonVariables from '../common/_common'
 
@@ -19,7 +19,7 @@ interface FadeInHeightExpandTransitionOption {
   reverse?: boolean
 }
 
-export default function ({
+export function fadeInHeightExpandTransition ({
   overflow = 'hidden',
   duration = '.3s',
   originalTransition = '',

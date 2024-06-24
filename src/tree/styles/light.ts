@@ -1,5 +1,6 @@
 import { changeColor } from 'seemly'
 import { checkboxLight } from '../../checkbox/styles'
+import { emptyLight } from '../../empty/styles'
 import { scrollbarLight } from '../../_internal/scrollbar/styles'
 import { commonLight } from '../../_styles/common'
 import type { ThemeCommonVars } from '../../_styles/common'
@@ -8,6 +9,7 @@ import { createTheme } from '../../_mixins/use-theme'
 export const self = (vars: ThemeCommonVars) => {
   const {
     borderRadiusSmall,
+    dividerColor,
     hoverColor,
     pressedColor,
     primaryColor,
@@ -18,6 +20,9 @@ export const self = (vars: ThemeCommonVars) => {
   } = vars
   return {
     fontSize,
+    lineHeight: '1.5',
+    nodeHeight: '30px',
+    nodeWrapperPadding: '3px 0',
     nodeBorderRadius: borderRadiusSmall,
     nodeColorHover: hoverColor,
     nodeColorPressed: pressedColor,
@@ -26,7 +31,8 @@ export const self = (vars: ThemeCommonVars) => {
     nodeTextColor: textColor2,
     nodeTextColorDisabled: textColorDisabled,
     loadingColor: primaryColor,
-    dropMarkColor: primaryColor
+    dropMarkColor: primaryColor,
+    lineColor: dividerColor
   }
 }
 
@@ -37,7 +43,8 @@ const treeLight = createTheme({
   common: commonLight,
   peers: {
     Checkbox: checkboxLight,
-    Scrollbar: scrollbarLight
+    Scrollbar: scrollbarLight,
+    Empty: emptyLight
   },
   self
 })

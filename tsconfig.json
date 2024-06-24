@@ -5,21 +5,19 @@
     },
     "strict": true,
     "strictNullChecks": true,
-    "jsx": "react",
+    "jsx": "preserve",
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment",
     "noImplicitAny": true,
-    "noUnusedLocals": false,
+    "noUnusedLocals": true,
     "module": "ES6",
     "moduleResolution": "Node",
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
     "composite": true,
     "target": "ES6",
+    "types": ["vue/jsx","jest"],
     "esModuleInterop": true,
-    "lib": [
-      "ESNext",
-      "DOM"
-    ]
+    "lib": ["ESNext", "DOM"]
   }
 }

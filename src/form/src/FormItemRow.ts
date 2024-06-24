@@ -6,9 +6,9 @@ import NFormItemCol, {
   formItemColProps,
   formItemColPropKeys
 } from './FormItemCol'
-import { FormItemColRef } from './interface'
+import type { FormItemColRef } from './interface'
 
-const formItemRowProps = {
+export const formItemRowProps = {
   ...rowProps,
   ...formItemColProps
 }
@@ -29,7 +29,7 @@ export default defineComponent({
     const restoreValidation: FormItemColRef['restoreValidation'] = () => {
       const { value } = formItemColInstRef
       if (value) {
-        return value.restoreValidation()
+        value.restoreValidation()
       }
     }
     return {
@@ -45,7 +45,7 @@ export default defineComponent({
         return h(
           NFormItemCol,
           {
-            ref: 'formItemColRef',
+            ref: 'formItemColInstRef',
             ...colProps,
             span: 24
           },

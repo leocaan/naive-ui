@@ -1,13 +1,14 @@
-import { computed, ComputedRef, ref } from 'vue'
-import type { DataTableSetupProps } from './DataTable'
+import { computed, type ComputedRef, ref } from 'vue'
 import type {
+  DataTableSetupProps,
   RowKey,
+  RowData,
   TableSelectionColumn,
   InternalRowData,
   TmNode
 } from './interface'
 import { call } from '../../_utils'
-import { TreeMate } from 'treemate'
+import type { TreeMate } from 'treemate'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useCheck (
@@ -22,14 +23,20 @@ export function useCheck (
   const uncontrolledCheckedRowKeysRef = ref(props.defaultCheckedRowKeys)
   const mergedCheckState = computed(() => {
     const { checkedRowKeys } = props
-    return treeMateRef.value.getCheckedKeys(
+    const sourceKeys =
       checkedRowKeys === undefined
         ? uncontrolledCheckedRowKeysRef.value
-        : checkedRowKeys,
-      {
-        cascade: props.cascade
+        : checkedRowKeys
+    if (selectionColumnRef.value?.multiple === false) {
+      return {
+        checkedKeys: sourceKeys.slice(0, 1),
+        indeterminateKeys: []
       }
-    )
+    }
+    return treeMateRef.value.getCheckedKeys(sourceKeys, {
+      cascade: props.cascade,
+      allowNotLoaded: props.allowCheckingNotLoaded
+    })
   })
 
   const mergedCheckedRowKeysRef = computed(
@@ -77,31 +84,68 @@ export function useCheck (
   const headerCheckboxDisabledRef = computed(() => {
     return paginatedDataRef.value.length === 0
   })
-  function doUpdateCheckedRowKeys (keys: RowKey[]): void {
+  function doUpdateCheckedRowKeys (
+    keys: RowKey[],
+    row: RowData | undefined,
+    action: 'check' | 'uncheck' | 'checkAll' | 'uncheckAll'
+  ): void {
     const {
       'onUpdate:checkedRowKeys': _onUpdateCheckedRowKeys,
       onUpdateCheckedRowKeys,
       onCheckedRowKeysChange
     } = props
-    if (_onUpdateCheckedRowKeys) call(_onUpdateCheckedRowKeys, keys)
-    if (onUpdateCheckedRowKeys) call(onUpdateCheckedRowKeys, keys)
-    if (onCheckedRowKeysChange) call(onCheckedRowKeysChange, keys)
+    const rows: InternalRowData[] = []
+    const {
+      value: { getNode }
+    } = treeMateRef
+    keys.forEach((key) => {
+      const row = getNode(key)?.rawNode
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      rows.push(row!)
+    })
+    if (_onUpdateCheckedRowKeys) {
+      call(_onUpdateCheckedRowKeys, keys, rows, { row, action })
+    }
+    if (onUpdateCheckedRowKeys) {
+      call(onUpdateCheckedRowKeys, keys, rows, { row, action })
+    }
+    if (onCheckedRowKeysChange) {
+      call(onCheckedRowKeysChange, keys, rows, { row, action })
+    }
     uncontrolledCheckedRowKeysRef.value = keys
   }
-  function doCheck (rowKey: RowKey | RowKey[]): void {
+  function doCheck (
+    rowKey: RowKey | RowKey[],
+    single: boolean = false,
+    rowInfo: RowData
+  ): void {
     if (props.loading) return
+    if (single) {
+      doUpdateCheckedRowKeys(
+        Array.isArray(rowKey) ? rowKey.slice(0, 1) : [rowKey],
+        rowInfo,
+        'check'
+      )
+      return
+    }
     doUpdateCheckedRowKeys(
       treeMateRef.value.check(rowKey, mergedCheckedRowKeysRef.value, {
-        cascade: props.cascade
-      }).checkedKeys
+        cascade: props.cascade,
+        allowNotLoaded: props.allowCheckingNotLoaded
+      }).checkedKeys,
+      rowInfo,
+      'check'
     )
   }
-  function doUncheck (rowKey: RowKey | RowKey[]): void {
+  function doUncheck (rowKey: RowKey | RowKey[], rowInfo: RowData): void {
     if (props.loading) return
     doUpdateCheckedRowKeys(
       treeMateRef.value.uncheck(rowKey, mergedCheckedRowKeysRef.value, {
-        cascade: props.cascade
-      }).checkedKeys
+        cascade: props.cascade,
+        allowNotLoaded: props.allowCheckingNotLoaded
+      }).checkedKeys,
+      rowInfo,
+      'uncheck'
     )
   }
   function doCheckAll (checkWholeTable: boolean = false): void {
@@ -119,8 +163,11 @@ export function useCheck (
     // alway cascade, to emit correct row keys
     doUpdateCheckedRowKeys(
       treeMateRef.value.check(rowKeysToCheck, mergedCheckedRowKeysRef.value, {
-        cascade: true
-      }).checkedKeys
+        cascade: true,
+        allowNotLoaded: props.allowCheckingNotLoaded
+      }).checkedKeys,
+      undefined,
+      'checkAll'
     )
   }
   function doUncheckAll (checkWholeTable: boolean = false): void {
@@ -141,9 +188,12 @@ export function useCheck (
         rowKeysToUncheck,
         mergedCheckedRowKeysRef.value,
         {
-          cascade: true
+          cascade: true,
+          allowNotLoaded: props.allowCheckingNotLoaded
         }
-      ).checkedKeys
+      ).checkedKeys,
+      undefined,
+      'uncheckAll'
     )
   }
   return {
